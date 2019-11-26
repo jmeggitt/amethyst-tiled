@@ -36,23 +36,23 @@ pub fn load_tileset<P: AsRef<Path>>(
 
     let formatted = encode::<AmethystFormat>(&packed, ());
 
-    let sprites = formatted.sprites.iter().map(|x| Sprite::from_pixel_values(img_width, img_height, tile_width, tile_height, x.x as u32, x.y as u32, [0.0; 2], false, false)).collect();
-
-//    pub fn from_pixel_values(
-//        image_w: u32,
-//        image_h: u32,
-//        sprite_w: u32,
-//        sprite_h: u32,
-//        pixel_left: u32,
-//        pixel_top: u32,
-//        offsets: [f32; 2],
-//        flip_horizontal: bool,
-//        flip_vertical: bool,
-//    ) -> Sprite {
-//    let mut sprites = Vec::with_capacity(packed.)
-
-
-    ;
+    let sprites = formatted
+        .sprites
+        .iter()
+        .map(|x| {
+            Sprite::from_pixel_values(
+                img_width,
+                img_height,
+                tile_width,
+                tile_height,
+                x.x as u32,
+                x.y as u32,
+                [0.0; 2],
+                false,
+                false,
+            )
+        })
+        .collect();
 
     unimplemented!()
 }
