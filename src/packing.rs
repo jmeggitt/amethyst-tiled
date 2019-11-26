@@ -2,12 +2,13 @@
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
 use failure::Error;
 use amethyst::renderer::sprite::{Sprite, TextureCoordinates};
+use amethyst::renderer::sprite::{Sprites, SpriteList, SpritePosition};
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
 use sheep::{InputSprite, pack, SimplePacker, SpriteSheet, encode, AmethystFormat};
 use tiled::Image as TileImage;
 use tiled::Tileset;
 
-pub fn extract_sprites(sheet: &SpriteSheet) -> Vec<Sprite> {
+pub fn extract_sprite_vec(sheet: &SpriteSheet) -> Vec<Sprite> {
     let formatted = encode::<AmethystFormat>(&sheet, ());
     let mut sprites = Vec::with_capacity(formatted.sprites.len());
 
@@ -31,6 +32,32 @@ pub fn extract_sprites(sheet: &SpriteSheet) -> Vec<Sprite> {
     }
 
     sprites
+}
+
+pub fn extract_sprites(sheet: &SpriteSheet) -> Sprites {
+    let formatted = encode::<AmethystFormat>(&sheet, ());
+    let mut sprites = Vec::with_capacity(formatted.sprites.len());
+
+    for sprite in formatted.sprites {
+
+        let sprite = SpritePosition {
+            x: sprite.x as u32,
+            y: sprite.y as u32,
+            width: sprite.width as u32,
+            height: sprite.height as u32,
+            offsets: sprite.offsets,
+            flip_horizontal: false,
+            flip_vertical: false
+        };
+
+        sprites.push(sprite);
+    }
+
+    Sprites::List(SpriteList{
+        texture_width: formatted.texture_width as u32,
+        texture_height: formatted.texture_height as u32,
+        sprites
+    })
 }
 
 pub fn pack_tileset(set: &Tileset) -> Result<SpriteSheet, Error> {
@@ -64,6 +91,7 @@ pub fn pack_image(img: &TileImage, tile_size: (u32, u32), margin: u32, spacing: 
 
     Ok(sprites)
 }
+
 
 /// Open the image and removes the transparent color
 pub fn open_image(img: &TileImage) -> Result<RgbaImage, Error> {
