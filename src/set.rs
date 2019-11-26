@@ -1,10 +1,9 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
+use crate::error::LoadError;
 use image::{DynamicImage, GenericImage, GenericImageView, ImageResult, RgbaImage};
 use sheep::{pack, InputSprite, SimplePacker, SpriteSheet};
 use tiled::Tileset;
-use crate::error::LoadError;
-
 
 pub fn find_then_pack(tiles: &Tileset) -> Result<SpriteSheet, LoadError> {
     let mut tile_bytes = Vec::with_capacity(tiles.tiles.len());

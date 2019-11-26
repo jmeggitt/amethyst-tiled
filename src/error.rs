@@ -1,13 +1,13 @@
-use tiled::TiledError;
-use std::io::Error as IOError;
 use image::ImageError;
+use std::io::Error as IOError;
+use tiled::TiledError;
 
 pub enum LoadError {
     Tiled(TiledError),
     IO(IOError),
     // TODO: Allow for non rgba8 images
     ImageType,
-    ImageError(ImageError)
+    ImageError(ImageError),
 }
 
 impl From<TiledError> for LoadError {
