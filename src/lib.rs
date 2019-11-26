@@ -13,7 +13,7 @@ use tiled::parse_tileset;
 use sheep::SpriteSheet as PackedSpriteSheet;
 use sheep::{encode, AmethystFormat};
 
-mod set;
+mod packing;
 
 pub fn load_tileset<P: AsRef<Path>>(
     path: P,
@@ -25,7 +25,7 @@ pub fn load_tileset<P: AsRef<Path>>(
     let tile_width = tileset.tile_width;
     let tile_height = tileset.tile_height;
 
-    let mut packed = set::find_then_pack(&tileset)?;
+    let mut packed = packing::pack_tileset(&tileset)?;
     let (img_width, img_height) = packed.dimensions;
 
     let formatted = encode::<AmethystFormat>(&packed, ());
