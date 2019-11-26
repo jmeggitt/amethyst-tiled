@@ -3,13 +3,18 @@
 use image::{DynamicImage, GenericImage, GenericImageView, ImageResult, RgbaImage};
 use sheep::{pack, InputSprite, SimplePacker, SpriteSheet};
 use tiled::Tileset;
+use crate::error::LoadError;
 
-pub fn find_then_pack(tiles: &Tileset) -> Option<SpriteSheet> {
+
+pub fn find_then_pack(tiles: &Tileset) -> Result<SpriteSheet, LoadError> {
     let mut tile_bytes = Vec::with_capacity(tiles.tiles.len());
 
     for img in tiles.images.iter() {
-        let mut img_src = image::open(&img.source).ok()?;
-        let img_src = img_src.as_mut_rgba8()?;
+        let mut img_src = image::open(&img.source)?;
+        let img_src = match img_src.as_mut_rgba8() {
+            Some(v) => v,
+            None => return Err(LoadError::ImageType),
+        };
 
         for x in (tiles.margin..img.width as u32 - tiles.margin)
             .step_by((tiles.tile_width + tiles.spacing) as usize)
@@ -34,6 +39,8 @@ pub fn find_then_pack(tiles: &Tileset) -> Option<SpriteSheet> {
         }
     }
 
+    let mut packed = pack::<SimplePacker>(tile_bytes, 4, Default::default());
+
     // There is guaranteed to be exactly one resulting sprite sheet
-    Some(pack::<SimplePacker>(tile_bytes, 4, Default::default()).remove(0))
+    Ok(packed.remove(0))
 }

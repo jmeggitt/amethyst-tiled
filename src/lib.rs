@@ -6,45 +6,22 @@ use amethyst::assets::ProgressCounter;
 use amethyst::ecs::Entity;
 use amethyst::Error;
 use serde::{Deserialize, Serialize};
-use tiled::{parse, parse_tileset, Map, Tileset};
+use tiled::{parse, parse_tileset, Map, Tileset, TiledError};
 
 use amethyst::renderer::SpriteSheet;
+use std::path::Path;
+use std::fs::File;
 
 mod format;
 mod prefab;
 mod set;
+mod error;
 
-pub use format::*;
+use error::LoadError;
 
-#[derive(Serialize, Deserialize)]
-pub enum TileSetPrefab {
-    #[serde(skip)]
-    TileSet(Tileset),
-    /// The name of the file
-    Set(String),
+pub fn load_tileset<P: AsRef<Path>>(path: P) -> Result<SpriteSheet, LoadError> {
+    let tileset = parse_tileset(File::open(path)?, 1)?;
+
+    let packed = set::find_then_pack(&tileset);
+    unimplemented!()
 }
-
-impl<'a> PrefabData<'a> for TileSetPrefab {
-    type SystemData = ();
-    type Result = ();
-
-    fn add_to_entity(
-        &self,
-        _entity: Entity,
-        _system_data: &mut Self::SystemData,
-        _entities: &[Entity],
-        _children: &[Entity],
-    ) -> Result<Self::Result, Error> {
-        unimplemented!()
-    }
-
-    fn load_sub_assets(
-        &mut self,
-        _progress: &mut ProgressCounter,
-        _system_data: &mut Self::SystemData,
-    ) -> Result<bool, Error> {
-        unimplemented!()
-    }
-}
-
-pub struct TileSheetLoadedSet {}
