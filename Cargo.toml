@@ -1,0 +1,12 @@
+[package]
+name = "tiled_support"
+version = "0.1.0"
+authors = ["Jasper Meggitt <jasper.meggitt@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+tiled = "0.8"
+sheep = "0.3.0"
+image = "0.22"
+serde = "1.0"
+amethyst = "0.13"
