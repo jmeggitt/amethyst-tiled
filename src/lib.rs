@@ -25,18 +25,17 @@ pub fn load_tileset<P: AsRef<Path>>(
     let tile_width = tileset.tile_width;
     let tile_height = tileset.tile_height;
 
-    let packed = set::find_then_pack(&tileset)?;
+    let mut packed = set::find_then_pack(&tileset)?;
     let (img_width, img_height) = packed.dimensions;
 
+    let formatted = encode::<AmethystFormat>(&packed, ());
     let reader = BufReader::new(Cursor::new(packed.bytes));
 
     let texture_builder = load_from_image(reader, ImageTextureConfig::default())?;
 
     let texture_handle = loader.load_from_data(TextureData(texture_builder), progress, storage);
 
-    let formatted = encode::<AmethystFormat>(&packed, ());
-
-    let sprites = formatted
+    let sprites: Vec<Sprite> = formatted
         .sprites
         .iter()
         .map(|x| {
