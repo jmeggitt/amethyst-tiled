@@ -1,18 +1,18 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
-use crate::error::LoadError;
-use image::{DynamicImage, GenericImage, GenericImageView, ImageResult, RgbaImage};
+use image::{GenericImage, GenericImageView, ImageError};
 use sheep::{pack, InputSprite, SimplePacker, SpriteSheet};
 use tiled::Tileset;
+use failure::Error;
 
-pub fn find_then_pack(tiles: &Tileset) -> Result<SpriteSheet, LoadError> {
+pub fn find_then_pack(tiles: &Tileset) -> Result<SpriteSheet, Error> {
     let mut tile_bytes = Vec::with_capacity(tiles.tiles.len());
 
     for img in tiles.images.iter() {
         let mut img_src = image::open(&img.source)?;
         let img_src = match img_src.as_mut_rgba8() {
             Some(v) => v,
-            None => return Err(LoadError::ImageType),
+            None => return Err(ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into()),
         };
 
         for x in (tiles.margin..img.width as u32 - tiles.margin)

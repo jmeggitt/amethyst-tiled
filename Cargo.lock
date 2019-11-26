@@ -3051,8 +3051,8 @@ name = "tiled_support"
 version = "0.1.0"
 dependencies = [
  "amethyst 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.22.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "sheep 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiled 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
