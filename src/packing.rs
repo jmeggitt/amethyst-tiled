@@ -1,11 +1,37 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
 use failure::Error;
-use image::{DynamicImage, GenericImage, GenericImageView, ImageError, Pixel, Rgba, RgbaImage};
-use sheep::{InputSprite, pack, SimplePacker, SpriteSheet};
+use amethyst::renderer::sprite::{Sprite, TextureCoordinates};
+use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
+use sheep::{InputSprite, pack, SimplePacker, SpriteSheet, encode, AmethystFormat};
 use tiled::Image as TileImage;
 use tiled::Tileset;
 
+pub fn extract_sprites(sheet: &SpriteSheet) -> Vec<Sprite> {
+    let formatted = encode::<AmethystFormat>(&sheet, ());
+    let mut sprites = Vec::with_capacity(formatted.sprites.len());
+
+    for sprite in formatted.sprites {
+
+        let position = TextureCoordinates {
+            left: sprite.x,
+            right: formatted.texture_width - sprite.x - sprite.width,
+            bottom: formatted.texture_height - sprite.y - sprite.height,
+            top: sprite.y
+        };
+
+        let sprite = Sprite {
+            width: sprite.width,
+            height: sprite.height,
+            offsets: sprite.offsets.unwrap_or([0.0; 2]),
+            tex_coords: position
+        };
+
+        sprites.push(sprite);
+    }
+
+    sprites
+}
 
 pub fn pack_tileset(set: &Tileset) -> Result<SpriteSheet, Error> {
     let mut sprites = Vec::new();
