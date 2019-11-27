@@ -1,6 +1,6 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
-use amethyst::renderer::sprite::{SpriteList, SpritePosition, Sprites, Sprite, TextureCoordinates};
+use amethyst::renderer::sprite::{Sprite, SpriteList, SpritePosition, Sprites, TextureCoordinates};
 use failure::Error;
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
 use sheep::{encode, pack, AmethystFormat, InputSprite, SimplePacker, SpriteSheet};

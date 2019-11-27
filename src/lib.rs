@@ -5,20 +5,21 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use amethyst::assets::{AssetStorage, Handle, Loader, ProgressCounter};
-use amethyst::renderer::{SpriteSheet, Texture};
-use amethyst::renderer::rendy::texture::image::{ImageTextureConfig, load_from_image};
+use amethyst::renderer::rendy::texture::image::{load_from_image, ImageTextureConfig};
 use amethyst::renderer::types::TextureData;
+use amethyst::renderer::{SpriteSheet, Texture};
 use failure::Error;
 use tiled::{parse_tileset, Tileset};
 
-pub mod packing;
-pub mod loader;
-pub mod system;
 pub mod format;
+pub mod loader;
+pub mod packing;
+pub mod prefab;
+pub mod system;
 
 fn load_tileset_inner(
     tileset: &Tileset,
-    loader: Loader,
+    loader: &Loader,
     progress: &mut ProgressCounter,
     storage: &AssetStorage<Texture>,
 ) -> Result<SpriteSheet, Error> {
@@ -37,7 +38,7 @@ fn load_tileset_inner(
 
 pub fn load_tileset<P: AsRef<Path>>(
     path: P,
-    loader: Loader,
+    loader: &Loader,
     progress: &mut ProgressCounter,
     storage: &AssetStorage<Texture>,
 ) -> Result<SpriteSheet, Error> {
@@ -48,11 +49,11 @@ pub fn load_tileset<P: AsRef<Path>>(
 
 pub fn load_cached_tileset<P: AsRef<Path>>(
     path: P,
-    loader: Loader,
+    loader: &Loader,
     progress: &mut ProgressCounter,
     storage: &AssetStorage<Texture>,
     sprite_sheets: &mut AssetStorage<SpriteSheet>,
-    tilesets: &TileSets,
+    tilesets: &Tilesets,
 ) -> Result<Handle<SpriteSheet>, Error> {
     let tileset = parse_tileset(File::open(path)?, 1)?;
 
@@ -69,9 +70,9 @@ pub fn load_cached_tileset<P: AsRef<Path>>(
 }
 
 #[derive(Default)]
-pub struct TileSets(Mutex<HashMap<String, Handle<SpriteSheet>>>);
+pub struct Tilesets(Mutex<HashMap<String, Handle<SpriteSheet>>>);
 
-impl TileSets {
+impl Tilesets {
     pub fn push(&self, set_name: String, handle: Handle<SpriteSheet>) {
         self.0.lock().unwrap().insert(set_name, handle);
     }
