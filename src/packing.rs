@@ -1,10 +1,9 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
+use amethyst::renderer::sprite::{SpriteList, SpritePosition, Sprites, Sprite, TextureCoordinates};
 use failure::Error;
-use amethyst::renderer::sprite::{Sprite, TextureCoordinates};
-use amethyst::renderer::sprite::{Sprites, SpriteList, SpritePosition};
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
-use sheep::{InputSprite, pack, SimplePacker, SpriteSheet, encode, AmethystFormat};
+use sheep::{encode, pack, AmethystFormat, InputSprite, SimplePacker, SpriteSheet};
 use tiled::Image as TileImage;
 use tiled::Tileset;
 
@@ -13,19 +12,18 @@ pub fn extract_sprite_vec(sheet: &SpriteSheet) -> Vec<Sprite> {
     let mut sprites = Vec::with_capacity(formatted.sprites.len());
 
     for sprite in formatted.sprites {
-
         let position = TextureCoordinates {
             left: sprite.x,
             right: formatted.texture_width - sprite.x - sprite.width,
             bottom: formatted.texture_height - sprite.y - sprite.height,
-            top: sprite.y
+            top: sprite.y,
         };
 
         let sprite = Sprite {
             width: sprite.width,
             height: sprite.height,
             offsets: sprite.offsets.unwrap_or([0.0; 2]),
-            tex_coords: position
+            tex_coords: position,
         };
 
         sprites.push(sprite);
@@ -39,7 +37,6 @@ pub fn extract_sprites(sheet: &SpriteSheet) -> Sprites {
     let mut sprites = Vec::with_capacity(formatted.sprites.len());
 
     for sprite in formatted.sprites {
-
         let sprite = SpritePosition {
             x: sprite.x as u32,
             y: sprite.y as u32,
@@ -47,16 +44,16 @@ pub fn extract_sprites(sheet: &SpriteSheet) -> Sprites {
             height: sprite.height as u32,
             offsets: sprite.offsets,
             flip_horizontal: false,
-            flip_vertical: false
+            flip_vertical: false,
         };
 
         sprites.push(sprite);
     }
 
-    Sprites::List(SpriteList{
+    Sprites::List(SpriteList {
         texture_width: formatted.texture_width as u32,
         texture_height: formatted.texture_height as u32,
-        sprites
+        sprites,
     })
 }
 
@@ -71,10 +68,14 @@ pub fn pack_tileset(set: &Tileset) -> Result<SpriteSheet, Error> {
 
     // There is guaranteed to be exactly one resulting sprite sheet
     Ok(pack::<SimplePacker>(sprites, 4, ()).remove(0))
-
 }
 
-pub fn pack_image(img: &TileImage, tile_size: (u32, u32), margin: u32, spacing: u32) -> Result<Vec<InputSprite>, Error> {
+pub fn pack_image(
+    img: &TileImage,
+    tile_size: (u32, u32),
+    margin: u32,
+    spacing: u32,
+) -> Result<Vec<InputSprite>, Error> {
     let mut image = open_image(img)?;
 
     let (width, height) = tile_size;
@@ -92,12 +93,15 @@ pub fn pack_image(img: &TileImage, tile_size: (u32, u32), margin: u32, spacing: 
     Ok(sprites)
 }
 
-
 /// Open the image and removes the transparent color
 pub fn open_image(img: &TileImage) -> Result<RgbaImage, Error> {
     let mut image = match image::open(&img.source)? {
         DynamicImage::ImageRgba8(v) => v,
-        _ => return Err(ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into())
+        _ => {
+            return Err(
+                ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into(),
+            )
+        }
     };
 
     if let Some(color) = img.transparent_colour {
