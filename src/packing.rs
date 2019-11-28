@@ -1,11 +1,12 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
 use amethyst::renderer::sprite::{Sprite, SpriteList, SpritePosition, Sprites, TextureCoordinates};
-use failure::Error;
+use failure::{Error, Context};
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
 use sheep::{encode, pack, AmethystFormat, InputSprite, SimplePacker, SpriteSheet};
 use tiled::Image as TileImage;
 use tiled::Tileset;
+use std::ops::Range;
 
 pub fn extract_sprite_vec(sheet: &SpriteSheet) -> Vec<Sprite> {
     let formatted = encode::<AmethystFormat>(&sheet, ());
@@ -121,3 +122,86 @@ pub fn open_image(img: &TileImage) -> Result<RgbaImage, Error> {
 pub fn sub_image_bytes(img: &mut RgbaImage, x: u32, y: u32, width: u32, height: u32) -> Vec<u8> {
     img.sub_image(x, y, width, height).to_image().into_raw()
 }
+
+
+#[derive(Default)]
+pub struct GidMapper {
+    gid: Vec<usize>,
+    len: Vec<usize>,
+}
+
+impl GidMapper {
+
+    /// Checks for collisions between the requested grid and the existing ones.
+    fn collisions(&self, area: Range<usize>) -> bool {
+        for set in 0..self.len() {
+            let gid = self.gid[set];
+            let len = self.len[set];
+
+            if gid + len > area.start && area.end > gid {
+                return true
+            }
+        }
+
+        false
+    }
+
+    pub fn add_set(&mut self, first_gid: usize, len: usize) -> bool {
+        if !self.collisions(first_gid..first_gid + len) {
+            self.gid.push(first_gid);
+            self.len.push(len);
+            return true
+        }
+
+        false
+    }
+
+    pub fn map(&self, idx: usize) -> Option<usize> {
+        let mut stride = 0;
+
+        for set in 0..self.len() {
+            let gid = self.gid[set];
+            let len = self.len[set];
+
+            if idx >= gid && idx < gid + len {
+                return Some(stride + idx - gid)
+            } else {
+                stride += len;
+            }
+        }
+
+        None
+    }
+
+
+    pub fn len(&self) -> usize {
+        self.gid.len()
+    }
+
+
+}
+
+/// Pack a list of tile sets while paying attention to the first grid id
+pub fn pack_tileset_vec(sets: &Vec<Tileset>) -> Result<(SpriteSheet, GidMapper), Error> {
+    let mut sprites = Vec::new();
+    let mut mapper = GidMapper::default();
+
+    for set in sets {
+        let tile_size = (set.tile_width, set.tile_height);
+        let start_len = sprites.len();
+
+        for image in &set.images {
+            sprites.extend(pack_image(image, tile_size, set.margin, set.spacing)?);
+        }
+
+        if !mapper.add_set(set.first_gid as usize, sprites.len() - start_len) {
+            return Err(Context::from("Unable to resolve first gid of tile sets in map").into())
+        }
+    }
+    // There is guaranteed to be exactly one resulting sprite sheet
+    let packed = pack::<SimplePacker>(sprites, 4, ()).remove(0);
+
+    Ok((packed, mapper))
+}
+
+

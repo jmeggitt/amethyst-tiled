@@ -2,7 +2,7 @@ use amethyst::assets::{AssetStorage, Handle, Loader, PrefabData, ProgressCounter
 use amethyst::ecs::{Entity, Read, ReadExpect, Write};
 use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::Error;
-use tiled::Tileset;
+use tiled::{Tileset, Map};
 
 use crate::{load_tileset_inner, Tilesets};
 
@@ -67,3 +67,9 @@ impl<'a> PrefabData<'a> for TileSetPrefab {
         Ok(false)
     }
 }
+
+pub enum TileMapPrefab {
+    Handle(Handle<SpriteSheet>),
+    TileSet(Map),
+}
+
