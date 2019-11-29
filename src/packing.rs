@@ -1,12 +1,12 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
 use amethyst::renderer::sprite::{Sprite, SpriteList, SpritePosition, Sprites, TextureCoordinates};
-use failure::{Error, Context};
+use failure::{Context, Error};
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
 use sheep::{encode, pack, AmethystFormat, InputSprite, SimplePacker, SpriteSheet};
+use std::ops::Range;
 use tiled::Image as TileImage;
 use tiled::Tileset;
-use std::ops::Range;
 
 pub fn extract_sprite_vec(sheet: &SpriteSheet) -> Vec<Sprite> {
     let formatted = encode::<AmethystFormat>(&sheet, ());
@@ -86,7 +86,7 @@ pub fn pack_image(
         for y in (margin..image.height() + margin).step_by((height + spacing) as usize) {
             sprites.push(InputSprite {
                 dimensions: tile_size,
-                bytes: sub_image_bytes(&mut image, x, y, width, height),
+                bytes: image.sub_image(x, y, width, height).to_image().into_raw(),
             })
         }
     }
@@ -118,12 +118,9 @@ pub fn open_image(img: &TileImage) -> Result<RgbaImage, Error> {
     Ok(image)
 }
 
-// Gets the bytes from a portion of an image
-pub fn sub_image_bytes(img: &mut RgbaImage, x: u32, y: u32, width: u32, height: u32) -> Vec<u8> {
-    img.sub_image(x, y, width, height).to_image().into_raw()
-}
-
-
+/// When a tilemap is loaded, the grid ids may not line up correctly. For instance, the first grid
+/// id in one tileset can be an arbitrary value. To simplify things, this struct maps the original
+/// id to the new compressed id starting from 0.
 #[derive(Default)]
 pub struct GidMapper {
     gid: Vec<usize>,
@@ -131,7 +128,6 @@ pub struct GidMapper {
 }
 
 impl GidMapper {
-
     /// Checks for collisions between the requested grid and the existing ones.
     fn collisions(&self, area: Range<usize>) -> bool {
         for set in 0..self.len() {
@@ -139,7 +135,7 @@ impl GidMapper {
             let len = self.len[set];
 
             if gid + len > area.start && area.end > gid {
-                return true
+                return true;
             }
         }
 
@@ -150,7 +146,7 @@ impl GidMapper {
         if !self.collisions(first_gid..first_gid + len) {
             self.gid.push(first_gid);
             self.len.push(len);
-            return true
+            return true;
         }
 
         false
@@ -164,7 +160,7 @@ impl GidMapper {
             let len = self.len[set];
 
             if idx >= gid && idx < gid + len {
-                return Some(stride + idx - gid)
+                return Some(stride + idx - gid);
             } else {
                 stride += len;
             }
@@ -173,12 +169,9 @@ impl GidMapper {
         None
     }
 
-
     pub fn len(&self) -> usize {
         self.gid.len()
     }
-
-
 }
 
 /// Pack a list of tile sets while paying attention to the first grid id
@@ -195,7 +188,7 @@ pub fn pack_tileset_vec(sets: &Vec<Tileset>) -> Result<(SpriteSheet, GidMapper),
         }
 
         if !mapper.add_set(set.first_gid as usize, sprites.len() - start_len) {
-            return Err(Context::from("Unable to resolve first gid of tile sets in map").into())
+            return Err(Context::from("Unable to resolve first gid of tile sets in map").into());
         }
     }
     // There is guaranteed to be exactly one resulting sprite sheet
@@ -203,5 +196,3 @@ pub fn pack_tileset_vec(sets: &Vec<Tileset>) -> Result<(SpriteSheet, GidMapper),
 
     Ok((packed, mapper))
 }
-
-

@@ -1,12 +1,12 @@
 use amethyst::assets::{AssetStorage, Handle, Loader, PrefabData, ProgressCounter};
-use amethyst::ecs::{Entity, Read, ReadExpect, Write, World};
+use amethyst::ecs::{Entity, Read, ReadExpect, Write};
 use amethyst::renderer::{SpriteSheet, Texture};
-use amethyst::core::math::Point3;
+use amethyst::tiles::TileMap;
 use amethyst::Error;
-use amethyst::tiles::{TileMap, Tile};
-use tiled::{Tileset, Map};
+use tiled::{Map, Tileset};
 
 use crate::{load_tileset_inner, Tilesets};
+use crate::TileGid;
 
 pub enum TileSetPrefab {
     Handle(Handle<SpriteSheet>),
@@ -69,25 +69,6 @@ impl<'a> PrefabData<'a> for TileSetPrefab {
         Ok(false)
     }
 }
-
-
-/// The grid id of a tile
-#[repr(transparent)]
-#[derive(Copy, Clone, Hash, Default)]
-pub struct TileGid(usize);
-
-impl From<usize> for TileGid {
-    fn from(idx: usize) -> Self {
-        Self(idx)
-    }
-}
-
-impl Tile for TileGid {
-    fn sprite(&self, _: Point3<u32>, _: &World) -> Option<usize> {
-        Some(self.0)
-    }
-}
-
 
 pub enum TileMapPrefab {
     Handle(Handle<TileMap<TileGid>>),
