@@ -5,8 +5,8 @@ use amethyst::tiles::TileMap;
 use amethyst::Error;
 use tiled::{Map, Tileset};
 
-use crate::{load_tileset_inner, Tilesets};
 use crate::TileGid;
+use crate::{load_map_inner, load_tileset_inner, Tilesets};
 
 pub enum TileSetPrefab {
     Handle(Handle<SpriteSheet>),
@@ -72,5 +72,48 @@ impl<'a> PrefabData<'a> for TileSetPrefab {
 
 pub enum TileMapPrefab {
     Handle(Handle<TileMap<TileGid>>),
-    TileSet(Map),
+    TileMap(Map),
+}
+
+impl<'a> PrefabData<'a> for TileMapPrefab {
+    type SystemData = (
+        Read<'a, AssetStorage<Texture>>,
+        Write<'a, AssetStorage<SpriteSheet>>,
+        Write<'a, AssetStorage<TileMap<TileGid>>>,
+        ReadExpect<'a, Loader>,
+    );
+
+    type Result = Handle<TileMap<TileGid>>;
+
+    fn add_to_entity(
+        &self,
+        _entity: Entity,
+        _system_data: &mut Self::SystemData,
+        _entities: &[Entity],
+        _children: &[Entity],
+    ) -> Result<Self::Result, Error> {
+        match self {
+            Self::Handle(handle) => Ok(handle.clone()),
+            _ => unreachable!("load_sub_assets should be called before add_to_entity"),
+        }
+    }
+
+    fn load_sub_assets(
+        &mut self,
+        progress: &mut ProgressCounter,
+        system_data: &mut Self::SystemData,
+    ) -> Result<bool, Error> {
+        let (textures, sheets, maps, loader) = system_data;
+
+        if let Self::TileMap(map) = self {
+            let map = match load_map_inner(&map, loader, progress, textures, sheets) {
+                Ok(v) => v,
+                Err(e) => return Err(Error::from_string(format!("{:}", e))),
+            };
+            *self = Self::Handle(maps.insert(map));
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
 }

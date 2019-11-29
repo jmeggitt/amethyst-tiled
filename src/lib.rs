@@ -5,23 +5,18 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use amethyst::assets::{AssetStorage, Handle, Loader, ProgressCounter};
-use amethyst::tiles::{TileMap, Tile, MapStorage};
+use amethyst::core::math::{Point3, Vector3};
+use amethyst::ecs::World;
 use amethyst::renderer::rendy::texture::image::{load_from_image, ImageTextureConfig};
 use amethyst::renderer::types::TextureData;
 use amethyst::renderer::{SpriteSheet, Texture};
-use amethyst::core::math::{Point3, Vector3};
-use amethyst::ecs::World;
+use amethyst::tiles::{MapStorage, Tile, TileMap};
 use failure::Error;
-use tiled::{parse_tileset, Tileset, Map};
+use tiled::{parse_tileset, Map, Tileset};
 
 pub mod format;
-pub mod loader;
 pub mod packing;
 pub mod prefab;
-pub mod system;
-
-
-
 
 /// The grid id of a tile
 #[repr(transparent)]
@@ -47,7 +42,6 @@ pub fn load_map_inner(
     storage: &AssetStorage<Texture>,
     sheets: &mut AssetStorage<SpriteSheet>,
 ) -> Result<TileMap<TileGid>, Error> {
-
     let (packed, mapper) = packing::pack_tileset_vec(&map.tilesets)?;
     let reader = BufReader::new(Cursor::new(&packed.bytes));
     let texture_builder = load_from_image(reader, ImageTextureConfig::default())?;
@@ -77,7 +71,6 @@ pub fn load_map_inner(
 
     Ok(tilemap)
 }
-
 
 fn load_tileset_inner(
     tileset: &Tileset,
