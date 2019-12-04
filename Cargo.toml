@@ -8,8 +8,15 @@ edition = "2018"
 default = ["amethyst/tiles"]
 
 [dependencies]
-tiled = "0.8"
+tiled = { git = "https://github.com/jmeggitt/rs-tiled.git" }
 sheep = "0.3.0"
 image = "0.22"
 amethyst = "0.13"
 failure = "0.1"
+
+[dev-dependencies]
+log = { version = "0.4.6", features = ["serde"] }
+
+[[example]]
+name = "concept"
+path = "examples/concept/main.rs"

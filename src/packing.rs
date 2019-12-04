@@ -96,7 +96,14 @@ pub fn pack_image(
 
 /// Open the image and removes the transparent color
 pub fn open_image(img: &TileImage) -> Result<RgbaImage, Error> {
-    let mut image = match image::open(&img.source)? {
+    let image = match image::open(&img.source) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Unable to open image path: {:?}", &img.source);
+            return Err(e.into());
+        }
+    };
+    let mut image = match image {
         DynamicImage::ImageRgba8(v) => v,
         _ => {
             return Err(

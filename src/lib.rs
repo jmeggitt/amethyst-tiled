@@ -12,7 +12,7 @@ use amethyst::renderer::types::TextureData;
 use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::tiles::{MapStorage, Tile, TileMap};
 use failure::Error;
-use tiled::{parse_tileset, Map, Tileset};
+use tiled::{parse_tileset, Map, Tileset, TilesetRef};
 
 pub mod format;
 pub mod packing;
@@ -42,7 +42,7 @@ pub fn load_map_inner(
     storage: &AssetStorage<Texture>,
     sheets: &mut AssetStorage<SpriteSheet>,
 ) -> Result<TileMap<TileGid>, Error> {
-    let (packed, mapper) = packing::pack_tileset_vec(&map.tilesets)?;
+    let (packed, mapper) = packing::pack_tileset_vec(&map.tilesets.iter().map(|x|x.unwrap().clone()).collect())?;
     let reader = BufReader::new(Cursor::new(&packed.bytes));
     let texture_builder = load_from_image(reader, ImageTextureConfig::default())?;
 
@@ -62,7 +62,7 @@ pub fn load_map_inner(
         for x in 0..layer.tiles.len() {
             for y in 0..layer.tiles[x].len() {
                 match tilemap.get_mut(&Point3::new(x as u32, y as u32, layer.layer_index)) {
-                    Some(v) => *v = TileGid(mapper.map(layer.tiles[x][y] as usize).unwrap()),
+                    Some(v) => *v = TileGid(mapper.map(layer.tiles[x][y].gid as usize).unwrap()),
                     None => unreachable!("The map file was corrupt"),
                 }
             }

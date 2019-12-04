@@ -106,6 +106,7 @@ impl<'a> PrefabData<'a> for TileMapPrefab {
         let (textures, sheets, maps, loader) = system_data;
 
         if let Self::TileMap(map) = self {
+            println!("Loading sub assets map inner!");
             let map = match load_map_inner(&map, loader, progress, textures, sheets) {
                 Ok(v) => v,
                 Err(e) => return Err(Error::from_string(format!("{:}", e))),
