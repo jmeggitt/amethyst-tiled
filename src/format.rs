@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-use std::path::{Path, Component, Components, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use amethyst::assets::{self, Format, FormatValue, Prefab, SingleFile, Source};
+use amethyst::assets::{Format, FormatValue, Prefab, SingleFile, Source};
 use amethyst::Error;
-use image::{DynamicImage, ImageError, load_from_memory, RgbaImage};
-use sheep::InputSprite;
-use tiled::{Map, parse, parse_file, parse_tileset, parse_with_path, Tileset, TilesetRef};
+use image::{load_from_memory, DynamicImage, ImageError, RgbaImage};
+use tiled::{parse, parse_tileset, TilesetRef};
 
 use crate::prefab::{TileMapPrefab, TileSetPrefab};
 
@@ -15,7 +13,9 @@ use crate::prefab::{TileMapPrefab, TileSetPrefab};
 pub struct TiledFormat;
 
 impl<T: 'static> Format<Prefab<T>> for TiledFormat
-    where TiledFormat: Format<T> {
+where
+    TiledFormat: Format<T>,
+{
     fn name(&self) -> &'static str {
         <Self as Format<T>>::name(self)
     }
@@ -24,9 +24,9 @@ impl<T: 'static> Format<Prefab<T>> for TiledFormat
         &self,
         name: String,
         source: Arc<dyn Source>,
-        create_reload: Option<Box<dyn Format<Prefab<T>>>>,
+        _: Option<Box<dyn Format<Prefab<T>>>>,
     ) -> Result<FormatValue<Prefab<T>>, Error> {
-        let value =  <Self as Format<T>>::import(self, name, source, None)?;
+        let value = <Self as Format<T>>::import(self, name, source, None)?;
         Ok(FormatValue::data(Prefab::new_main(value.data)))
     }
 }
@@ -55,14 +55,12 @@ impl Format<TileMapPrefab> for TiledFormat {
     ) -> Result<FormatValue<TileMapPrefab>, Error> {
         println!("Loading tiles...");
 
-        let (b, m) = source
-            .load_with_metadata(&name)?;
+        let (b, m) = source.load_with_metadata(&name)?;
 
         let mut map = match parse(&b[..]) {
             Ok(v) => v,
             Err(e) => return Err(Error::new(e)),
         };
-
 
         for tileset in &mut map.tilesets {
             if let TilesetRef::Path(path, gid) = tileset {
@@ -103,7 +101,7 @@ impl Format<RgbaImage> for TiledFormat {
     fn import_simple(&self, bytes: Vec<u8>) -> Result<RgbaImage, Error> {
         match load_from_memory(&bytes[..])? {
             DynamicImage::ImageRgba8(v) => Ok(v),
-            _ => Err(ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into())
+            _ => Err(ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into()),
         }
     }
 }

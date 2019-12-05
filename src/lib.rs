@@ -1,28 +1,27 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Cursor, Write};
 use std::path::Path;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
-use amethyst::assets::{AssetStorage, Handle, Loader, ProgressCounter, Source, Directory};
+use amethyst::assets::{AssetStorage, Directory, Handle, Loader, ProgressCounter, Source};
 use amethyst::core::math::{Point3, Vector3};
 use amethyst::ecs::World;
 
-use amethyst::renderer::rendy::{hal::image::{Filter, Kind, SamplerInfo, ViewKind, WrapMode},
-                                texture::{pixel::Rgba8Srgb, pixel::Rgba8Unorm, TextureBuilder},};
-use amethyst::renderer::types::TextureData;
-use amethyst::renderer::{SpriteSheet, Texture,
-                         loaders::load_from_srgba,
-                         palette::Srgba,
-formats::texture::ImageFormat};
-use amethyst::tiles::{MapStorage, Tile, TileMap, FlatEncoder, MortonEncoder2D, MortonEncoder, CoordinateEncoder};
+use amethyst::renderer::rendy::{
+    hal::image::{Filter, Kind, SamplerInfo, ViewKind, WrapMode},
+    texture::{pixel::Rgba8Srgb, TextureBuilder},
+};
+use amethyst::renderer::{palette::Srgba, SpriteSheet, Texture};
+use amethyst::tiles::{FlatEncoder, MapStorage, Tile, TileMap};
 use failure::Error;
-use tiled::{parse_tileset, Map, Tileset, TilesetRef};
-use png::{Encoder, ColorType, BitDepth, Compression, FilterType};
+use sheep::encode;
+use tiled::{parse_tileset, Map, Tileset};
 
 pub mod format;
 pub mod packing;
 pub mod prefab;
+
+use packing::AmethystOrderedFormat;
 
 pub type TileEncoder = FlatEncoder;
 
@@ -51,32 +50,20 @@ pub fn load_map_inner(
     storage: &AssetStorage<Texture>,
     sheets: &mut AssetStorage<SpriteSheet>,
 ) -> Result<TileMap<TileGid, crate::TileEncoder>, Error> {
-    println!("Packing...");
-    let (packed, mapper) = packing::pack_tileset_vec(&map.tilesets.iter().map(|x|x.unwrap().clone()).collect(), source)?;
-    println!("Finished Packing...");
-    println!("Building Texture...");
+    let (packed, _mapper) = packing::pack_tileset_vec(
+        &map.tilesets.iter().map(|x| x.unwrap().clone()).collect(),
+        source,
+    )?;
 
-//    {
-//        let mut png_bytes = Vec::new();
-//        {
-//            let mut encoder = Encoder::new(&mut png_bytes, packed.dimensions.0, packed.dimensions.1);
-//            encoder.set_color(ColorType::RGBA);
-//            encoder.set_depth(BitDepth::Eight);
-//            encoder.set_compression(Compression::Default);
-//            encoder.set_filter(FilterType::NoFilter);
-//            let mut writer = encoder.write_header().expect("Failed to write png header");
-//            writer
-//                .write_image_data(&packed.bytes)
-//                .expect("Failed to write png data");
-//        }
-//        let mut file = File::create("test_out.png").expect("Failed to create image file");
-//        file.write_all(png_bytes.as_slice())
-//            .expect("Failed to write image to file");
-//    }
     let mut pixel_data = Vec::new();
 
     for idx in (0..packed.bytes.len()).step_by(4) {
-        pixel_data.push(Rgba8Srgb::from(Srgba::new(packed.bytes[idx], packed.bytes[idx + 1], packed.bytes[idx + 2], packed.bytes[idx + 3])));
+        pixel_data.push(Rgba8Srgb::from(Srgba::new(
+            packed.bytes[idx],
+            packed.bytes[idx + 1],
+            packed.bytes[idx + 2],
+            packed.bytes[idx + 3],
+        )));
     }
 
     let texture_builder = TextureBuilder::new()
@@ -86,11 +73,10 @@ pub fn load_map_inner(
         .with_data_height(packed.dimensions.1)
         .with_sampler_info(SamplerInfo::new(Filter::Nearest, WrapMode::Clamp))
         .with_data(pixel_data);
-    let texture_data = texture_builder.into();
 
     let sheet = SpriteSheet {
-        texture: loader.load_from_data(texture_data, progress, storage),
-        sprites: packing::extract_sprite_vec(&packed),
+        texture: loader.load_from_data(texture_builder.into(), progress, storage),
+        sprites: encode::<AmethystOrderedFormat>(&packed, ()),
     };
 
     let sprite_sheet = sheets.insert(sheet);
@@ -98,19 +84,14 @@ pub fn load_map_inner(
     let map_size = Vector3::new(map.width, map.height, map.layers.len() as u32);
     let tile_size = Vector3::new(map.tile_width, map.tile_height, 1);
 
-    println!("Map size: {:?}", map_size);
-    println!("Tile size: {:?}", tile_size);
-
     let mut tilemap = TileMap::new(map_size, tile_size, Some(sprite_sheet));
-
-    let layers = map.layers.len() as u32;
 
     for layer in &map.layers {
         for y in 0..layer.tiles.len() {
             for x in 0..layer.tiles[y].len() {
                 match tilemap.get_mut(&Point3::new(x as u32, y as u32, layer.layer_index)) {
                     Some(v) => *v = TileGid(layer.tiles[y][x].gid as usize),
-//                    Some(v) => *v = TileGid(mapper.map(layer.tiles[x][y].gid as usize).unwrap()),
+                    //                    Some(v) => *v = TileGid(mapper.map(layer.tiles[x][y].gid as usize).unwrap()),
                     None => unreachable!("The map file was corrupt"),
                 }
             }
@@ -121,24 +102,13 @@ pub fn load_map_inner(
 }
 
 fn load_tileset_inner(
-    tileset: &Tileset,
-    source: Arc<dyn Source>,
-    loader: &Loader,
-    progress: &mut ProgressCounter,
-    storage: &AssetStorage<Texture>,
+    _tileset: &Tileset,
+    _source: Arc<dyn Source>,
+    _loader: &Loader,
+    _progress: &mut ProgressCounter,
+    _storage: &AssetStorage<Texture>,
 ) -> Result<SpriteSheet, Error> {
-    let packed = packing::pack_tileset(tileset, source)?;
-    let reader = BufReader::new(Cursor::new(&packed.bytes));
-
-//    let texture_builder = load_from_image(reader, ImageTextureConfig::default())?;
-//
-//    let sheet = SpriteSheet {
-//        texture: loader.load_from_data(TextureData(texture_builder), progress, storage),
-//        sprites: packing::extract_sprite_vec(&packed),
-//    };
-//
-//    Ok(sheet)
-    panic!("Too lazy to do correctly")
+    unimplemented!()
 }
 
 pub fn load_tileset<P: AsRef<Path>>(
@@ -149,7 +119,13 @@ pub fn load_tileset<P: AsRef<Path>>(
 ) -> Result<SpriteSheet, Error> {
     let tileset = parse_tileset(File::open(&path)?, 1)?;
 
-    load_tileset_inner(&tileset, Arc::new(Directory::new(path.as_ref())), loader, progress, storage)
+    load_tileset_inner(
+        &tileset,
+        Arc::new(Directory::new(path.as_ref())),
+        loader,
+        progress,
+        storage,
+    )
 }
 
 pub fn load_cached_tileset<P: AsRef<Path>>(
@@ -165,7 +141,13 @@ pub fn load_cached_tileset<P: AsRef<Path>>(
     match tilesets.get(&tileset.name) {
         Some(handle) => Ok(handle),
         None => {
-            let sheet = load_tileset_inner(&tileset, Arc::new(Directory::new(path.as_ref())), loader, progress, storage)?;
+            let sheet = load_tileset_inner(
+                &tileset,
+                Arc::new(Directory::new(path.as_ref())),
+                loader,
+                progress,
+                storage,
+            )?;
             let handle = sprite_sheets.insert(sheet);
             tilesets.push(tileset.name.to_owned(), handle.clone());
 

@@ -1,5 +1,5 @@
 use amethyst::{
-    assets::{AssetStorage, Loader, PrefabLoaderSystemDesc, PrefabLoader},
+    assets::{AssetStorage, Loader, PrefabLoader, PrefabLoaderSystemDesc},
     core::{
         geometry::Plane,
         math::{Point3, Vector2, Vector3},
@@ -21,15 +21,15 @@ use amethyst::{
         types::DefaultBackend,
         RenderDebugLines, RenderFlat2D, RenderToWindow, RenderingBundle, Texture,
     },
-    tiles::{RenderTiles2D, Tile, TileMap, FlatEncoder},
+    tiles::{FlatEncoder, RenderTiles2D},
     utils::application_root_dir,
     window::ScreenDimensions,
     winit,
 };
 
-use tiled_support::TileGid;
-use tiled_support::prefab::TileMapPrefab;
 use tiled_support::format::TiledFormat;
+use tiled_support::prefab::TileMapPrefab;
+use tiled_support::TileGid;
 
 #[derive(Default)]
 struct Player;
@@ -416,8 +416,7 @@ fn main() -> amethyst::Result<()> {
         .with_bundle(
             RenderingBundle::<DefaultBackend>::new()
                 .with_plugin(
-                    RenderToWindow::from_config_path(display_config_path)
-                        .with_clear([1.0; 4]),
+                    RenderToWindow::from_config_path(display_config_path).with_clear([1.0; 4]),
                 )
                 .with_plugin(RenderFlat2D::default())
                 .with_plugin(RenderTiles2D::<TileGid, FlatEncoder>::default())
