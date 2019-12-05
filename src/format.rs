@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, Component, Components, PathBuf};
 use std::sync::Arc;
 
 use amethyst::assets::{self, Format, FormatValue, Prefab, SingleFile, Source};
@@ -31,16 +31,16 @@ impl<T: 'static> Format<Prefab<T>> for TiledFormat
     }
 }
 
-impl Format<TileSetPrefab> for TiledFormat {
-    fn name(&self) -> &'static str {
-        "Tile Set"
-    }
-
-    fn import_simple(&self, bytes: Vec<u8>) -> Result<TileSetPrefab, Error> {
-        let set = parse_tileset(&bytes[..], 1).map_err(Error::new)?;
-        Ok(TileSetPrefab::TileSet(set))
-    }
-}
+//impl Format<TileSetPrefab> for TiledFormat {
+//    fn name(&self) -> &'static str {
+//        "Tile Set"
+//    }
+//
+//    fn import_simple(&self, bytes: Vec<u8>) -> Result<TileSetPrefab, Error> {
+//        let set = parse_tileset(&bytes[..], 1).map_err(Error::new)?;
+//        Ok(TileSetPrefab::TileSet(set))
+//    }
+//}
 
 impl Format<TileMapPrefab> for TiledFormat {
     fn name(&self) -> &'static str {
@@ -53,30 +53,44 @@ impl Format<TileMapPrefab> for TiledFormat {
         source: Arc<dyn Source>,
         create_reload: Option<Box<dyn Format<TileMapPrefab>>>,
     ) -> Result<FormatValue<TileMapPrefab>, Error> {
+        println!("Loading tiles...");
+
         let (b, m) = source
             .load_with_metadata(&name)?;
 
-        println!("Loading with correct method!");
         let mut map = match parse(&b[..]) {
             Ok(v) => v,
             Err(e) => return Err(Error::new(e)),
         };
 
+
         for tileset in &mut map.tilesets {
             if let TilesetRef::Path(path, gid) = tileset {
-                let source = source.load(path)?;
-                *tileset = TilesetRef::TileSet(parse_tileset(&source[..], *gid)?);
-                println!("Fixed tileset!");
+                let mut path_buf = PathBuf::from(&name);
+                path_buf.set_file_name(path);
+                let source = source.load(path_buf.to_str().unwrap())?;
+
+                let mut set = parse_tileset(&source[..], *gid)?;
+
+                for image in &mut set.images {
+                    let mut path_buf = path_buf.clone();
+                    path_buf.set_file_name(&image.source);
+                    image.source = path_buf.to_str().unwrap().to_owned();
+                }
+
+                *tileset = TilesetRef::TileSet(set);
             }
         }
 
+        println!("Finished packing...");
+
         if let Some(boxed_format) = create_reload {
             Ok(FormatValue {
-                data: TileMapPrefab::TileMap(map),
+                data: TileMapPrefab::TileMap(map, source.clone()),
                 reload: Some(Box::new(SingleFile::new(boxed_format, m, name, source))),
             })
         } else {
-            Ok(FormatValue::data(TileMapPrefab::TileMap(map)))
+            Ok(FormatValue::data(TileMapPrefab::TileMap(map, source)))
         }
     }
 }
@@ -93,7 +107,3 @@ impl Format<RgbaImage> for TiledFormat {
         }
     }
 }
-
-
-
-

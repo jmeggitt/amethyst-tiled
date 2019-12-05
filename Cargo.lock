@@ -3076,6 +3076,7 @@ dependencies = [
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.22.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "png 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sheep 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiled 0.9.0 (git+https://github.com/jmeggitt/rs-tiled.git)",
 ]

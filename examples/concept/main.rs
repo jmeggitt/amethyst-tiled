@@ -21,7 +21,7 @@ use amethyst::{
         types::DefaultBackend,
         RenderDebugLines, RenderFlat2D, RenderToWindow, RenderingBundle, Texture,
     },
-    tiles::{RenderTiles2D, Tile, TileMap},
+    tiles::{RenderTiles2D, Tile, TileMap, FlatEncoder},
     utils::application_root_dir,
     window::ScreenDimensions,
     winit,
@@ -330,7 +330,7 @@ impl SimpleState for Example {
         let _camera = init_camera(
             world,
             player,
-            Transform::from(Vector3::new(0.0, 0.0, 1.1)),
+            Transform::from(Vector3::new(0.0, 0.0, 5.0)),
             Camera::standard_2d(width, height),
         );
         let _reference_screen = init_screen_reference_sprite(world, &circle_sprite_sheet_handle);
@@ -345,10 +345,13 @@ impl SimpleState for Example {
             loader.load("prefab/example_map.tmx", TiledFormat, ())
         });
 
+        let mut transform = Transform::default();
+        transform.set_scale(Vector3::new(1.0, 1.0, 1.0));
+
         let _map_entity = world
             .create_entity()
             .with(prefab_handle)
-            .with(Transform::default())
+            .with(transform)
             .build();
     }
 
@@ -414,10 +417,10 @@ fn main() -> amethyst::Result<()> {
             RenderingBundle::<DefaultBackend>::new()
                 .with_plugin(
                     RenderToWindow::from_config_path(display_config_path)
-                        .with_clear([0.34, 0.36, 0.52, 1.0]),
+                        .with_clear([1.0; 4]),
                 )
                 .with_plugin(RenderFlat2D::default())
-                .with_plugin(RenderTiles2D::<TileGid>::default())
+                .with_plugin(RenderTiles2D::<TileGid, FlatEncoder>::default())
                 .with_plugin(RenderDebugLines::default()),
         )?;
 
