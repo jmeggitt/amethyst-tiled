@@ -11,7 +11,10 @@ use amethyst::renderer::rendy::{
     hal::image::{Filter, Kind, SamplerInfo, ViewKind, WrapMode},
     texture::{pixel::Rgba8Srgb, TextureBuilder},
 };
-use amethyst::renderer::{palette::Srgba, SpriteSheet, Texture};
+use amethyst::renderer::{
+    palette::{Pixel, Srgba},
+    SpriteSheet, Texture,
+};
 use amethyst::tiles::{FlatEncoder, MapStorage, Tile, TileMap};
 use failure::Error;
 use sheep::encode;
@@ -42,6 +45,22 @@ impl Tile for TileGid {
     }
 }
 
+//fn build_texture(width: u32, height: u32, pixels: Vec<u8>) -> TextureBuilder {
+////    let mut pixel_data = Vec::new();
+//
+////    for idx in (0..pixels.len()).step_by(4) {
+////        pixel_data.push(Rgba8Srgb::from(Srgba::new(
+////            pixels[idx],
+////            pixels[idx + 1],
+////            pixels[idx + 2],
+////            pixels[idx + 3],
+////        )));
+////    }
+//    let pixel_data = Srgba::from_raw_slice(pixels).iter().map(Rgba8Srgb::from).collect();
+//
+//
+//}
+
 pub fn load_map_inner(
     map: &Map,
     source: Arc<dyn Source>,
@@ -49,28 +68,26 @@ pub fn load_map_inner(
     progress: &mut ProgressCounter,
     storage: &AssetStorage<Texture>,
     sheets: &mut AssetStorage<SpriteSheet>,
-) -> Result<TileMap<TileGid, crate::TileEncoder>, Error> {
+) -> Result<TileMap<TileGid, FlatEncoder>, Error> {
     let (packed, _mapper) = packing::pack_tileset_vec(
         &map.tilesets.iter().map(|x| x.unwrap().clone()).collect(),
         source,
     )?;
 
+    let (width, height) = packed.dimensions;
+
     let mut pixel_data = Vec::new();
 
-    for idx in (0..packed.bytes.len()).step_by(4) {
-        pixel_data.push(Rgba8Srgb::from(Srgba::new(
-            packed.bytes[idx],
-            packed.bytes[idx + 1],
-            packed.bytes[idx + 2],
-            packed.bytes[idx + 3],
-        )));
+    for pixel in Srgba::from_raw_slice(&packed.bytes) {
+        pixel_data.push(Rgba8Srgb::from(pixel.clone()));
     }
 
+    //    let texture_builder = build_texture(tex_width, tex_height, packed.bytes);
     let texture_builder = TextureBuilder::new()
-        .with_kind(Kind::D2(packed.dimensions.0, packed.dimensions.1, 1, 1))
+        .with_kind(Kind::D2(width, height, 1, 1))
         .with_view_kind(ViewKind::D2)
-        .with_data_width(packed.dimensions.0)
-        .with_data_height(packed.dimensions.1)
+        .with_data_width(width)
+        .with_data_height(height)
         .with_sampler_info(SamplerInfo::new(Filter::Nearest, WrapMode::Clamp))
         .with_data(pixel_data);
 
@@ -79,12 +96,10 @@ pub fn load_map_inner(
         sprites: encode::<AmethystOrderedFormat>(&packed, ()),
     };
 
-    let sprite_sheet = sheets.insert(sheet);
-
     let map_size = Vector3::new(map.width, map.height, map.layers.len() as u32);
     let tile_size = Vector3::new(map.tile_width, map.tile_height, 1);
 
-    let mut tilemap = TileMap::new(map_size, tile_size, Some(sprite_sheet));
+    let mut tilemap = TileMap::new(map_size, tile_size, Some(sheets.insert(sheet)));
 
     for layer in &map.layers {
         for y in 0..layer.tiles.len() {
