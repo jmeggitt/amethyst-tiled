@@ -11,7 +11,6 @@ default = ["amethyst/tiles"]
 tiled = { git = "https://github.com/jmeggitt/rs-tiled.git" }
 sheep = "0.3.0"
 image = "0.22"
-png = "0.15"
 amethyst = "0.13"
 failure = "0.1"
 

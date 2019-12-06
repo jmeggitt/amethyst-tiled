@@ -53,8 +53,6 @@ impl Format<TileMapPrefab> for TiledFormat {
         source: Arc<dyn Source>,
         create_reload: Option<Box<dyn Format<TileMapPrefab>>>,
     ) -> Result<FormatValue<TileMapPrefab>, Error> {
-        println!("Loading tiles...");
-
         let (b, m) = source.load_with_metadata(&name)?;
 
         let mut map = match parse(&b[..]) {
@@ -79,8 +77,6 @@ impl Format<TileMapPrefab> for TiledFormat {
                 *tileset = TilesetRef::TileSet(set);
             }
         }
-
-        println!("Finished packing...");
 
         if let Some(boxed_format) = create_reload {
             Ok(FormatValue {

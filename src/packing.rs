@@ -1,13 +1,10 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
 use amethyst::assets::Source;
-use amethyst::renderer::sprite::{Sprite, SpriteList, SpritePosition, Sprites};
+use amethyst::renderer::sprite::Sprite;
 use failure::{Context, Error};
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
-use sheep::{
-    encode, pack, AmethystFormat, Format, InputSprite, SimplePacker, SpriteAnchor, SpriteSheet,
-};
-use std::ops::Range;
+use sheep::{pack, Format, InputSprite, SimplePacker, SpriteAnchor, SpriteSheet};
 use std::sync::Arc;
 use tiled::Image as TileImage;
 use tiled::Tileset;
@@ -43,42 +40,19 @@ impl Format for AmethystOrderedFormat {
     }
 }
 
-pub fn extract_sprites(sheet: &SpriteSheet) -> Sprites {
-    let formatted = encode::<AmethystFormat>(&sheet, ());
-    let mut sprites = Vec::with_capacity(formatted.sprites.len());
-
-    for sprite in formatted.sprites {
-        let sprite = SpritePosition {
-            x: sprite.x as u32,
-            y: sprite.y as u32,
-            width: sprite.width as u32,
-            height: sprite.height as u32,
-            offsets: sprite.offsets,
-            flip_horizontal: false,
-            flip_vertical: false,
-        };
-        sprites.push(sprite);
-    }
-
-    Sprites::List(SpriteList {
-        texture_width: formatted.texture_width as u32,
-        texture_height: formatted.texture_height as u32,
-        sprites,
-    })
-}
-
 pub fn pack_tileset(set: &Tileset, source: Arc<dyn Source>) -> Result<SpriteSheet, Error> {
     let mut sprites = Vec::new();
-
-    let tile_size = (set.tile_width, set.tile_height);
 
     for image in &set.images {
         sprites.extend(pack_image(
             image,
             source.clone(),
-            tile_size,
-            set.margin,
-            set.spacing,
+            TileSpec {
+                width: set.tile_width,
+                height: set.tile_height,
+                margin: set.margin,
+                spacing: set.spacing,
+            },
         )?);
     }
 
@@ -86,28 +60,79 @@ pub fn pack_tileset(set: &Tileset, source: Arc<dyn Source>) -> Result<SpriteShee
     Ok(pack::<SimplePacker>(sprites, 4, ()).remove(0))
 }
 
+pub struct TileSpec {
+    pub width: u32,
+    pub height: u32,
+    pub margin: u32,
+    pub spacing: u32,
+}
+
 pub fn pack_image(
     img: &TileImage,
     source: Arc<dyn Source>,
-    tile_size: (u32, u32),
-    margin: u32,
-    spacing: u32,
+    spec: TileSpec,
 ) -> Result<Vec<InputSprite>, Error> {
     let mut image = open_image(img, source)?;
-    println!("Tile size: {:?}", tile_size);
 
-    let (width, height) = tile_size;
+    let TileSpec {
+        width,
+        height,
+        margin,
+        spacing,
+    } = spec;
     let mut sprites = Vec::new();
     for y in (margin..image.height() + margin).step_by((height + spacing) as usize) {
         for x in (margin..image.width() + margin).step_by((width + spacing) as usize) {
             sprites.push(InputSprite {
-                dimensions: tile_size,
+                dimensions: (width, height),
                 bytes: image.sub_image(x, y, width, height).to_image().into_raw(),
             })
         }
     }
 
     Ok(sprites)
+}
+
+/// Returns the necessary import sprites, the number of tiles within this image, and the number of
+/// gids filled by this call.
+pub fn pack_sparse_image(
+    img: &TileImage,
+    source: Arc<dyn Source>,
+    spec: TileSpec,
+    first_gid: u32,
+    usage: &[u32],
+) -> Result<(Vec<InputSprite>, u32, usize), Error> {
+    let mut image = open_image(img, source)?;
+
+    let TileSpec {
+        width,
+        height,
+        margin,
+        spacing,
+    } = spec;
+
+    let grid_width = (image.width() - 2 * margin) / (width + spacing);
+    let grid_height = (image.width() - 2 * margin) / (width + spacing);
+
+    let mut sprites = Vec::new();
+    let mut consumed_tiles = 0;
+
+    for idx in usage.iter() {
+        if *idx >= first_gid + grid_width * grid_height {
+            break;
+        }
+        consumed_tiles += 1;
+
+        let x = margin + ((idx - first_gid) % grid_width) * (height + spacing);
+        let y = margin + ((idx - first_gid) / grid_height) * (width + spacing);
+
+        sprites.push(InputSprite {
+            dimensions: (width, height),
+            bytes: image.sub_image(x, y, width, height).to_image().into_raw(),
+        })
+    }
+
+    Ok((sprites, grid_width * grid_height, consumed_tiles))
 }
 
 /// Open the image and removes the transparent color
@@ -119,9 +144,10 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
 
     let image = match image::load_from_memory(&bytes[..]) {
         Ok(v) => v,
-        Err(e) => {
-            println!("Unable to open image path: {:?}", &img.source);
-            return Err(e.into());
+        Err(_) => {
+            return Err(
+                Context::from(format!("Unable to open image path: {:?}", &img.source)).into(),
+            );
         }
     };
     let mut image = match image {
@@ -146,98 +172,80 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
     Ok(image)
 }
 
-/// When a tilemap is loaded, the grid ids may not line up correctly. For instance, the first grid
-/// id in one tileset can be an arbitrary value. To simplify things, this struct maps the original
-/// id to the new compressed id starting from 0.
-#[derive(Default)]
-pub struct GidMapper {
-    gid: Vec<usize>,
-    len: Vec<usize>,
-}
+pub fn pack_sparse_tileset_vec(
+    sets: &Vec<Tileset>,
+    source: Arc<dyn Source>,
+    usage: &[u32],
+) -> Result<SpriteSheet, Error> {
+    let mut sprites = Vec::new();
+    let tile_size = (sets[0].tile_width, sets[0].tile_height);
 
-impl GidMapper {
-    /// Checks for collisions between the requested grid and the existing ones.
-    fn collisions(&self, area: Range<usize>) -> bool {
-        for set in 0..self.len() {
-            let gid = self.gid[set];
-            let len = self.len[set];
+    // Add the see through placeholder.
+    sprites.push(InputSprite {
+        bytes: vec![0; (tile_size.0 * tile_size.1 * 4) as usize],
+        dimensions: tile_size,
+    });
 
-            if gid + len > area.start && area.end > gid {
-                return true;
-            }
+    // Don't load GID 0
+    let mut tile_index = 1;
+
+    for set in sets {
+        let mut first_gid = set.first_gid;
+
+        for image in &set.images {
+            let (input_sprites, len, consumed) = pack_sparse_image(
+                image,
+                source.clone(),
+                TileSpec {
+                    width: set.tile_width,
+                    height: set.tile_height,
+                    margin: set.margin,
+                    spacing: set.spacing,
+                },
+                first_gid,
+                &usage[tile_index..],
+            )?;
+
+            first_gid += len;
+            tile_index += consumed;
+
+            sprites.extend(input_sprites);
         }
-
-        false
     }
 
-    pub fn add_set(&mut self, first_gid: usize, len: usize) -> bool {
-        if !self.collisions(first_gid..first_gid + len) {
-            self.gid.push(first_gid);
-            self.len.push(len);
-            return true;
-        }
-
-        false
-    }
-
-    pub fn map(&self, idx: usize) -> Option<usize> {
-        let mut stride = 0;
-
-        for set in 0..self.len() {
-            let gid = self.gid[set];
-            let len = self.len[set];
-
-            if idx >= gid && idx < gid + len {
-                return Some(stride + idx - gid);
-            } else {
-                stride += len;
-            }
-        }
-
-        None
-    }
-
-    pub fn len(&self) -> usize {
-        self.gid.len()
-    }
+    // There is guaranteed to be exactly one resulting sprite sheet
+    Ok(pack::<SimplePacker>(sprites, 4, ()).remove(0))
 }
 
 /// Pack a list of tile sets while paying attention to the first grid id
 pub fn pack_tileset_vec(
     sets: &Vec<Tileset>,
     source: Arc<dyn Source>,
-) -> Result<(SpriteSheet, GidMapper), Error> {
-    println!("Beginning input extraction...");
+) -> Result<SpriteSheet, Error> {
     let mut sprites = Vec::new();
-    let mut mapper = GidMapper::default();
-
     let tile_size = (sets[0].tile_width, sets[0].tile_height);
+
+    // Add the see through placeholder.
     sprites.push(InputSprite {
         bytes: vec![0; (tile_size.0 * tile_size.1 * 4) as usize],
         dimensions: tile_size,
     });
 
     for set in sets {
-        //        let tile_size = (set.tile_width, set.tile_height);
-        let start_len = sprites.len();
-
         for image in &set.images {
             sprites.extend(pack_image(
                 image,
                 source.clone(),
-                tile_size,
-                set.margin,
-                set.spacing,
+                TileSpec {
+                    width: set.tile_width,
+                    height: set.tile_height,
+                    margin: set.margin,
+                    spacing: set.spacing,
+                },
             )?);
         }
-
-        if !mapper.add_set(set.first_gid as usize, sprites.len() - start_len) {
-            return Err(Context::from("Unable to resolve first gid of tile sets in map").into());
-        }
     }
-    println!("Finished input extraction\nPacking...");
-    // There is guaranteed to be exactly one resulting sprite sheet
-    let packed = pack::<SimplePacker>(sprites, 4, ()).remove(0);
 
-    Ok((packed, mapper))
+    // There is guaranteed to be exactly one resulting sprite sheet
+    Ok(pack::<SimplePacker>(sprites, 4, ()).remove(0))
 }

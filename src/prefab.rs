@@ -5,8 +5,8 @@ use amethyst::tiles::{FlatEncoder, TileMap};
 use amethyst::Error;
 use tiled::{Map, Tileset};
 
-use crate::TileGid;
 use crate::{load_map_inner, load_tileset_inner, Tilesets};
+use crate::{load_sparse_map_inner, TileGid};
 use std::sync::Arc;
 
 pub enum TileSetPrefab {
@@ -108,11 +108,18 @@ impl<'a> PrefabData<'a> for TileMapPrefab {
     ) -> Result<bool, Error> {
         let (textures, sheets, maps, _, loader) = system_data;
         if let Self::TileMap(map, source) = self {
-            let map = match load_map_inner(&map, source.clone(), loader, progress, textures, sheets)
-            {
+            let map = match load_sparse_map_inner(
+                &map,
+                source.clone(),
+                loader,
+                progress,
+                textures,
+                sheets,
+            ) {
                 Ok(v) => v,
                 Err(e) => return Err(Error::from_string(format!("{:?}", e))),
             };
+
             *self = Self::Handle(maps.insert(map));
 
             return Ok(true);
