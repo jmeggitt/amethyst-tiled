@@ -12,5 +12,6 @@ progress and any help/ideas are appreciated.
 - [ ] Support animation sequences via tiles that swap textures periodically
 - [ ] Create an easy way to access layer objects stored in tile maps
 - [ ] Support image layers
+
 Please make an issue if I'm forgetting something important in this list
  
