@@ -1,5 +1,5 @@
-use amethyst::assets::{AssetStorage, Handle, Loader, PrefabData, ProgressCounter, Source};
-use amethyst::ecs::{Component, Entity, Read, ReadExpect, SystemData, Write, WriteStorage};
+use amethyst::assets::{Asset, AssetStorage, Handle, Loader, PrefabData, ProgressCounter, Source};
+use amethyst::ecs::{Component, Entity, Read, ReadExpect, Write, WriteStorage};
 use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::tiles::{FlatEncoder, TileMap};
 use amethyst::Error;
@@ -74,10 +74,12 @@ pub enum MapPrefab<S: StrategyDesc> {
 
 impl<'a, T: LoadStrategy<'a>> PrefabData<'a> for MapPrefab<T>
 where
-    T::Result: Clone + Component,
+    T::Result: Clone + Component + Asset,
 {
     type SystemData = (T::SystemData, WriteStorage<'a, <T as StrategyDesc>::Result>);
-    type Result = T::Result;
+
+    // Don't use a result due to the requirement of cloning the tilemap extra times
+    type Result = ();
 
     fn add_to_entity(
         &self,
@@ -85,13 +87,13 @@ where
         system_data: &mut Self::SystemData,
         _entities: &[Entity],
         _children: &[Entity],
-    ) -> Result<T::Result, Error> {
+    ) -> Result<(), Error> {
         let (_, storage) = system_data;
 
         match self {
-            Self::Result(v) => {
+            MapPrefab::Result(v) => {
                 storage.insert(entity, v.clone())?;
-                Ok(v.clone())
+                Ok(())
             }
             _ => unreachable!("load_sub_assets should be called before add_to_entity"),
         }
@@ -103,7 +105,7 @@ where
         system_data: &mut Self::SystemData,
     ) -> Result<bool, Error> {
         match self {
-            Self::Map(map, source) => {
+            MapPrefab::Map(map, source) => {
                 *self = Self::Result(T::load(map, source.clone(), progress, &mut system_data.0)?);
                 Ok(true)
             }

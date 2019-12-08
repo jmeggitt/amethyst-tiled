@@ -15,7 +15,9 @@ use amethyst::{
 };
 
 use tiled_support::format::TiledFormat;
+use tiled_support::prefab::MapPrefab;
 use tiled_support::prefab::TileMapPrefab;
+use tiled_support::strategy::CompressedLoad;
 use tiled_support::TileGid;
 
 #[derive(Default)]
@@ -73,7 +75,7 @@ impl SimpleState for Example {
             .build();
 
         // Use a prefab loader to get the tiled .tmx file loaded
-        let prefab_handle = world.exec(|loader: PrefabLoader<'_, TileMapPrefab>| {
+        let prefab_handle = world.exec(|loader: PrefabLoader<'_, MapPrefab<CompressedLoad>>| {
             loader.load("prefab/example_map.tmx", TiledFormat, ())
         });
 
@@ -95,7 +97,11 @@ fn main() -> amethyst::Result<()> {
     let display_config_path = app_root.join("examples/concept/resources/display_config.ron");
 
     let game_data = GameDataBuilder::default()
-        .with_system_desc(PrefabLoaderSystemDesc::<TileMapPrefab>::default(), "", &[])
+        .with_system_desc(
+            PrefabLoaderSystemDesc::<MapPrefab<CompressedLoad>>::default(),
+            "",
+            &[],
+        )
         .with_bundle(TransformBundle::new())?
         .with_bundle(
             InputBundle::<StringBindings>::new()
