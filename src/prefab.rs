@@ -7,6 +7,7 @@ use tiled::{Map, Tileset};
 
 use crate::{load_tileset_inner, Tilesets};
 use crate::{load_sparse_map_inner, TileGid};
+use crate::strategy::{LoadStrategy, StrategyDesc};
 use std::sync::Arc;
 
 pub enum TileSetPrefab {
@@ -64,24 +65,6 @@ impl<'a> PrefabData<'a> for TileSetPrefab {
 
         Ok(false)
     }
-}
-
-pub trait StrategyDesc {
-    /// The type of output this strategy will produce
-    type Result;
-}
-
-pub trait LoadStrategy<'a>: StrategyDesc {
-    /// The data to request when loading a map
-    type SystemData: SystemData<'a>;
-
-    // Preform the load operation using a given map and source location
-    fn load(
-        map: &Map,
-        source: Arc<dyn Source>,
-        progress: &mut ProgressCounter,
-        system_data: &mut Self::SystemData,
-    ) -> Result<<Self as StrategyDesc>::Result, Error>;
 }
 
 pub enum MapPrefab<S: StrategyDesc> {

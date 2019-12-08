@@ -17,12 +17,13 @@ use amethyst::renderer::{
 };
 use amethyst::tiles::{FlatEncoder, MapStorage, Tile, TileMap};
 use failure::Error;
-use sheep::encode;
+use sheep::{encode, SpriteSheet as PackedSpriteSheet};
 use tiled::{parse_tileset, Map, Tileset};
 
 pub mod format;
 pub mod packing;
 pub mod prefab;
+pub mod strategy;
 
 use packing::AmethystOrderedFormat;
 
@@ -57,6 +58,34 @@ fn collect_gid_usage(map: &Map) -> BTreeSet<u32> {
     gids
 }
 
+fn load_sprite_sheet(packed: PackedSpriteSheet,
+                    loader: &Loader,
+                    progress: &mut ProgressCounter,
+                    storage: &AssetStorage<Texture>,) -> SpriteSheet {
+    let (width, height) = packed.dimensions;
+
+    let mut pixel_data = Vec::new();
+
+    for pixel in Srgba::from_raw_slice(&packed.bytes) {
+        pixel_data.push(Rgba8Srgb::from(pixel.clone()));
+    }
+
+
+    //    let texture_builder = build_texture(tex_width, tex_height, packed.bytes);
+    let texture_builder = TextureBuilder::new()
+        .with_kind(Kind::D2(width, height, 1, 1))
+        .with_view_kind(ViewKind::D2)
+        .with_data_width(width)
+        .with_data_height(height)
+        .with_sampler_info(SamplerInfo::new(Filter::Nearest, WrapMode::Clamp))
+        .with_data(pixel_data);
+
+    SpriteSheet {
+        texture: loader.load_from_data(texture_builder.into(), progress, storage),
+        sprites: encode::<AmethystOrderedFormat>(&packed, ()),
+    }
+}
+
 /// A version of load_map_inner that tries to save time and memory by skipping unused tiles when
 /// packing the sprite sheet and not leaving the unused tiles stored in memory. On the other hand,
 /// if most or all of the tiles are used in the map it the regular version will be faster and use a
@@ -72,7 +101,6 @@ pub fn load_sparse_map_inner(
     sheets: &mut AssetStorage<SpriteSheet>,
 ) -> Result<TileMap<TileGid, FlatEncoder>, Error> {
     let tile_usage: Vec<u32> = collect_gid_usage(map).into_iter().collect();
-    println!("GIDs used: {:?}", tile_usage);
 
     let mut gid_updater = HashMap::new();
 
@@ -86,30 +114,9 @@ pub fn load_sparse_map_inner(
         &tile_usage[..],
     )?;
 
-    let (width, height) = packed.dimensions;
-
-    let mut pixel_data = Vec::new();
-
-    for pixel in Srgba::from_raw_slice(&packed.bytes) {
-        pixel_data.push(Rgba8Srgb::from(pixel.clone()));
-    }
-
-    //    let texture_builder = build_texture(tex_width, tex_height, packed.bytes);
-    let texture_builder = TextureBuilder::new()
-        .with_kind(Kind::D2(width, height, 1, 1))
-        .with_view_kind(ViewKind::D2)
-        .with_data_width(width)
-        .with_data_height(height)
-        .with_sampler_info(SamplerInfo::new(Filter::Nearest, WrapMode::Clamp))
-        .with_data(pixel_data);
-
-    let sheet = SpriteSheet {
-        texture: loader.load_from_data(texture_builder.into(), progress, storage),
-        sprites: encode::<AmethystOrderedFormat>(&packed, ()),
-    };
-
     let map_size = Vector3::new(map.width, map.height, map.layers.len() as u32);
     let tile_size = Vector3::new(map.tile_width, map.tile_height, 1);
+    let sheet = load_sprite_sheet(packed, loader, progress, storage);
 
     let mut tilemap = TileMap::new(map_size, tile_size, Some(sheets.insert(sheet)));
 
@@ -143,30 +150,9 @@ pub fn load_map_inner(
         source,
     )?;
 
-    let (width, height) = packed.dimensions;
-
-    let mut pixel_data = Vec::new();
-
-    for pixel in Srgba::from_raw_slice(&packed.bytes) {
-        pixel_data.push(Rgba8Srgb::from(pixel.clone()));
-    }
-
-    //    let texture_builder = build_texture(tex_width, tex_height, packed.bytes);
-    let texture_builder = TextureBuilder::new()
-        .with_kind(Kind::D2(width, height, 1, 1))
-        .with_view_kind(ViewKind::D2)
-        .with_data_width(width)
-        .with_data_height(height)
-        .with_sampler_info(SamplerInfo::new(Filter::Nearest, WrapMode::Clamp))
-        .with_data(pixel_data);
-
-    let sheet = SpriteSheet {
-        texture: loader.load_from_data(texture_builder.into(), progress, storage),
-        sprites: encode::<AmethystOrderedFormat>(&packed, ()),
-    };
-
     let map_size = Vector3::new(map.width, map.height, map.layers.len() as u32);
     let tile_size = Vector3::new(map.tile_width, map.tile_height, 1);
+    let sheet = load_sprite_sheet(packed, loader, progress, storage);
 
     let mut tilemap = TileMap::new(map_size, tile_size, Some(sheets.insert(sheet)));
 
