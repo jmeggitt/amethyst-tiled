@@ -1,11 +1,11 @@
 use amethyst::assets::{AssetStorage, Handle, Loader, PrefabData, ProgressCounter, Source};
-use amethyst::ecs::{Entity, Read, ReadExpect, Write, WriteStorage};
+use amethyst::ecs::{Entity, Read, ReadExpect, Write, WriteStorage, SystemData, Component};
 use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::tiles::{FlatEncoder, TileMap};
 use amethyst::Error;
 use tiled::{Map, Tileset};
 
-use crate::{load_map_inner, load_tileset_inner, Tilesets};
+use crate::{load_tileset_inner, Tilesets};
 use crate::{load_sparse_map_inner, TileGid};
 use std::sync::Arc;
 
@@ -63,6 +63,57 @@ impl<'a> PrefabData<'a> for TileSetPrefab {
         }
 
         Ok(false)
+    }
+}
+
+pub trait StrategyDesc {
+    /// The type of output this strategy will produce
+    type Result;
+}
+
+pub trait LoadStrategy<'a>: StrategyDesc {
+    /// The data to request when loading a map
+    type SystemData: SystemData<'a>;
+
+    // Preform the load operation using a given map and source location
+    fn load(
+        map: &Map,
+        source: Arc<dyn Source>,
+        progress: &mut ProgressCounter,
+        system_data: &mut Self::SystemData,
+    ) -> Result<<Self as StrategyDesc>::Result, Error>;
+}
+
+pub enum MapPrefab<S: StrategyDesc> {
+    Result(S::Result),
+    Map(Map, Arc<dyn Source>),
+}
+
+impl<'a, T: LoadStrategy<'a>> PrefabData<'a> for MapPrefab<T>
+    where T::Result: Clone + Component {
+    type SystemData = (T::SystemData, WriteStorage<'a, <T as StrategyDesc>::Result>);
+    type Result = T::Result;
+
+    fn add_to_entity(&self, entity: Entity, system_data: &mut Self::SystemData, _entities: &[Entity], _children: &[Entity]) -> Result<T::Result, Error> {
+        let (_, storage) = system_data;
+
+        match self {
+            Self::Result(v) => {
+                storage.insert(entity, v.clone())?;
+                Ok(v.clone())
+            }
+            _ => unreachable!("load_sub_assets should be called before add_to_entity"),
+        }
+    }
+
+    fn load_sub_assets(&mut self, progress: &mut ProgressCounter, system_data: &mut Self::SystemData) -> Result<bool, Error> {
+        match self {
+            Self::Map(map, source) => {
+                *self = Self::Result(T::load(map, source.clone(), progress, &mut system_data.0)?);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
 
