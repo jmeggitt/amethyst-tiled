@@ -1,4 +1,4 @@
-use amethyst::assets::{AssetStorage, Loader, ProgressCounter, Source, Handle};
+use amethyst::assets::{AssetStorage, Handle, Loader, ProgressCounter, Source};
 use amethyst::core::math::{Point3, Vector3};
 use amethyst::ecs::{Read, ReadExpect, SystemData, Write};
 use amethyst::renderer::{SpriteSheet, Texture};

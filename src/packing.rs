@@ -139,11 +139,6 @@ pub fn pack_sparse_image(
 pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage, Error> {
     let bytes = match source.load(&img.source) {
         Ok(v) => v,
-        Err(_) => panic!("Unable to find image: {:?}", img),
-    };
-
-    let image = match image::load_from_memory(&bytes[..]) {
-        Ok(v) => v,
         Err(_) => {
             return Err(Error::from_string(format!(
                 "Unable to open image path: {:?}",
@@ -151,7 +146,8 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
             )));
         }
     };
-    let mut image = match image {
+
+    let mut image = match image::load_from_memory(&bytes[..])? {
         DynamicImage::ImageRgba8(v) => v,
         _ => {
             return Err(

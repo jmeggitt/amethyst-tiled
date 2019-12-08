@@ -14,7 +14,7 @@ use amethyst::{
     window::ScreenDimensions,
 };
 
-use tiled_support::{TileGid, TiledFormat, TileMapPrefab};
+use tiled_support::{TileGid, TileMapPrefab, TiledFormat};
 
 #[derive(Default)]
 pub struct CameraMovementSystem;
@@ -71,10 +71,9 @@ impl SimpleState for Example {
             .build();
 
         // Use a prefab loader to get the tiled .tmx file loaded
-        let prefab_handle =
-            world.exec(|loader: PrefabLoader<'_, TileMapPrefab>| {
-                loader.load("prefab/example_map.tmx", TiledFormat, ())
-            });
+        let prefab_handle = world.exec(|loader: PrefabLoader<'_, TileMapPrefab>| {
+            loader.load("prefab/example_map.tmx", TiledFormat, ())
+        });
 
         let _map_entity = world
             .create_entity()
@@ -94,11 +93,7 @@ fn main() -> amethyst::Result<()> {
     let display_config_path = app_root.join("examples/concept/resources/display_config.ron");
 
     let game_data = GameDataBuilder::default()
-        .with_system_desc(
-            PrefabLoaderSystemDesc::<TileMapPrefab>::default(),
-            "",
-            &[],
-        )
+        .with_system_desc(PrefabLoaderSystemDesc::<TileMapPrefab>::default(), "", &[])
         .with_bundle(TransformBundle::new())?
         .with_bundle(
             InputBundle::<StringBindings>::new()
