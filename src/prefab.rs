@@ -1,13 +1,13 @@
 use amethyst::assets::{AssetStorage, Handle, Loader, PrefabData, ProgressCounter, Source};
-use amethyst::ecs::{Entity, Read, ReadExpect, Write, WriteStorage, SystemData, Component};
+use amethyst::ecs::{Component, Entity, Read, ReadExpect, SystemData, Write, WriteStorage};
 use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::tiles::{FlatEncoder, TileMap};
 use amethyst::Error;
 use tiled::{Map, Tileset};
 
-use crate::{load_tileset_inner, Tilesets};
-use crate::{load_sparse_map_inner, TileGid};
 use crate::strategy::{LoadStrategy, StrategyDesc};
+use crate::{load_sparse_map_inner, TileGid};
+use crate::{load_tileset_inner, Tilesets};
 use std::sync::Arc;
 
 pub enum TileSetPrefab {
@@ -73,11 +73,19 @@ pub enum MapPrefab<S: StrategyDesc> {
 }
 
 impl<'a, T: LoadStrategy<'a>> PrefabData<'a> for MapPrefab<T>
-    where T::Result: Clone + Component {
+where
+    T::Result: Clone + Component,
+{
     type SystemData = (T::SystemData, WriteStorage<'a, <T as StrategyDesc>::Result>);
     type Result = T::Result;
 
-    fn add_to_entity(&self, entity: Entity, system_data: &mut Self::SystemData, _entities: &[Entity], _children: &[Entity]) -> Result<T::Result, Error> {
+    fn add_to_entity(
+        &self,
+        entity: Entity,
+        system_data: &mut Self::SystemData,
+        _entities: &[Entity],
+        _children: &[Entity],
+    ) -> Result<T::Result, Error> {
         let (_, storage) = system_data;
 
         match self {
@@ -89,7 +97,11 @@ impl<'a, T: LoadStrategy<'a>> PrefabData<'a> for MapPrefab<T>
         }
     }
 
-    fn load_sub_assets(&mut self, progress: &mut ProgressCounter, system_data: &mut Self::SystemData) -> Result<bool, Error> {
+    fn load_sub_assets(
+        &mut self,
+        progress: &mut ProgressCounter,
+        system_data: &mut Self::SystemData,
+    ) -> Result<bool, Error> {
         match self {
             Self::Map(map, source) => {
                 *self = Self::Result(T::load(map, source.clone(), progress, &mut system_data.0)?);

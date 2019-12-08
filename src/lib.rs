@@ -7,6 +7,7 @@ use amethyst::assets::{AssetStorage, Directory, Handle, Loader, ProgressCounter,
 use amethyst::core::math::{Point3, Vector3};
 use amethyst::ecs::World;
 
+use amethyst::error::Error;
 use amethyst::renderer::rendy::{
     hal::image::{Filter, Kind, SamplerInfo, ViewKind, WrapMode},
     texture::{pixel::Rgba8Srgb, TextureBuilder},
@@ -16,7 +17,6 @@ use amethyst::renderer::{
     SpriteSheet, Texture,
 };
 use amethyst::tiles::{FlatEncoder, MapStorage, Tile, TileMap};
-use failure::Error;
 use sheep::{encode, SpriteSheet as PackedSpriteSheet};
 use tiled::{parse_tileset, Map, Tileset};
 
@@ -58,10 +58,12 @@ fn collect_gid_usage(map: &Map) -> BTreeSet<u32> {
     gids
 }
 
-fn load_sprite_sheet(packed: PackedSpriteSheet,
-                    loader: &Loader,
-                    progress: &mut ProgressCounter,
-                    storage: &AssetStorage<Texture>,) -> SpriteSheet {
+fn load_sprite_sheet(
+    packed: PackedSpriteSheet,
+    loader: &Loader,
+    progress: &mut ProgressCounter,
+    storage: &AssetStorage<Texture>,
+) -> SpriteSheet {
     let (width, height) = packed.dimensions;
 
     let mut pixel_data = Vec::new();
@@ -69,7 +71,6 @@ fn load_sprite_sheet(packed: PackedSpriteSheet,
     for pixel in Srgba::from_raw_slice(&packed.bytes) {
         pixel_data.push(Rgba8Srgb::from(pixel.clone()));
     }
-
 
     //    let texture_builder = build_texture(tex_width, tex_height, packed.bytes);
     let texture_builder = TextureBuilder::new()

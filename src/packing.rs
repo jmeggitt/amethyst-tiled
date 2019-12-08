@@ -1,8 +1,8 @@
 //! Module to help pack tile sets and convert them into amethyst
 //! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
 use amethyst::assets::Source;
+use amethyst::error::Error;
 use amethyst::renderer::sprite::Sprite;
-use failure::{Context, Error};
 use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
 use sheep::{pack, Format, InputSprite, SimplePacker, SpriteAnchor, SpriteSheet};
 use std::sync::Arc;
@@ -145,9 +145,10 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
     let image = match image::load_from_memory(&bytes[..]) {
         Ok(v) => v,
         Err(_) => {
-            return Err(
-                Context::from(format!("Unable to open image path: {:?}", &img.source)).into(),
-            );
+            return Err(Error::from_string(format!(
+                "Unable to open image path: {:?}",
+                &img.source
+            )));
         }
     };
     let mut image = match image {
