@@ -1,10 +1,10 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use amethyst::assets::{AssetStorage, Directory, Handle, Loader, ProgressCounter, Source};
-use amethyst::core::math::{Point3, Vector3};
+use amethyst::core::math::Point3;
 use amethyst::ecs::World;
 
 use amethyst::error::Error;
@@ -16,18 +16,20 @@ use amethyst::renderer::{
     palette::{Pixel, Srgba},
     SpriteSheet, Texture,
 };
-use amethyst::tiles::{FlatEncoder, MapStorage, Tile, TileMap};
+use amethyst::tiles::Tile;
 use sheep::{encode, SpriteSheet as PackedSpriteSheet};
-use tiled::{parse_tileset, Map, Tileset};
+use tiled::{parse_tileset, Tileset};
 
-pub mod format;
+mod format;
 pub mod packing;
-pub mod prefab;
+mod prefab;
 pub mod strategy;
 
 use packing::AmethystOrderedFormat;
 
-pub type TileEncoder = FlatEncoder;
+pub use format::TiledFormat;
+pub use prefab::*;
+pub use strategy::{CompressedLoad, FlatLoad, StaticLoad};
 
 /// The grid id of a tile
 #[repr(transparent)]
@@ -46,18 +48,6 @@ impl Tile for TileGid {
     }
 }
 
-fn collect_gid_usage(map: &Map) -> BTreeSet<u32> {
-    let mut gids = BTreeSet::new();
-    for layer in &map.layers {
-        for row in &layer.tiles {
-            for tile in row {
-                gids.insert(tile.gid);
-            }
-        }
-    }
-    gids
-}
-
 fn load_sprite_sheet(
     packed: PackedSpriteSheet,
     loader: &Loader,
@@ -72,7 +62,6 @@ fn load_sprite_sheet(
         pixel_data.push(Rgba8Srgb::from(pixel.clone()));
     }
 
-    //    let texture_builder = build_texture(tex_width, tex_height, packed.bytes);
     let texture_builder = TextureBuilder::new()
         .with_kind(Kind::D2(width, height, 1, 1))
         .with_view_kind(ViewKind::D2)
@@ -85,90 +74,6 @@ fn load_sprite_sheet(
         texture: loader.load_from_data(texture_builder.into(), progress, storage),
         sprites: encode::<AmethystOrderedFormat>(&packed, ()),
     }
-}
-
-/// A version of load_map_inner that tries to save time and memory by skipping unused tiles when
-/// packing the sprite sheet and not leaving the unused tiles stored in memory. On the other hand,
-/// if most or all of the tiles are used in the map it the regular version will be faster and use a
-/// similar amount of memory.
-///
-/// In random experimentation, this method was ~2x (23.5s -> 12.6s) as fast to load the example
-pub fn load_sparse_map_inner(
-    map: &Map,
-    source: Arc<dyn Source>,
-    loader: &Loader,
-    progress: &mut ProgressCounter,
-    storage: &AssetStorage<Texture>,
-    sheets: &mut AssetStorage<SpriteSheet>,
-) -> Result<TileMap<TileGid, FlatEncoder>, Error> {
-    let tile_usage: Vec<u32> = collect_gid_usage(map).into_iter().collect();
-
-    let mut gid_updater = HashMap::new();
-
-    for (new_index, old_index) in tile_usage.iter().enumerate() {
-        gid_updater.insert(*old_index, new_index);
-    }
-
-    let packed = packing::pack_sparse_tileset_vec(
-        &map.tilesets.iter().map(|x| x.unwrap().clone()).collect(),
-        source,
-        &tile_usage[..],
-    )?;
-
-    let map_size = Vector3::new(map.width, map.height, map.layers.len() as u32);
-    let tile_size = Vector3::new(map.tile_width, map.tile_height, 1);
-    let sheet = load_sprite_sheet(packed, loader, progress, storage);
-
-    let mut tilemap = TileMap::new(map_size, tile_size, Some(sheets.insert(sheet)));
-
-    for layer in &map.layers {
-        for y in 0..layer.tiles.len() {
-            for x in 0..layer.tiles[y].len() {
-                let tile_ref = tilemap.get_mut(&Point3::new(x as u32, y as u32, layer.layer_index));
-                let tile_idx = gid_updater.get(&layer.tiles[y][x].gid);
-
-                match (tile_ref, tile_idx) {
-                    (Some(tile), Some(index)) => *tile = TileGid(*index),
-                    _ => unreachable!("The available tiles should not have changed since the start of the function"),
-                }
-            }
-        }
-    }
-
-    Ok(tilemap)
-}
-
-pub fn load_map_inner(
-    map: &Map,
-    source: Arc<dyn Source>,
-    loader: &Loader,
-    progress: &mut ProgressCounter,
-    storage: &AssetStorage<Texture>,
-    sheets: &mut AssetStorage<SpriteSheet>,
-) -> Result<TileMap<TileGid, FlatEncoder>, Error> {
-    let packed = packing::pack_tileset_vec(
-        &map.tilesets.iter().map(|x| x.unwrap().clone()).collect(),
-        source,
-    )?;
-
-    let map_size = Vector3::new(map.width, map.height, map.layers.len() as u32);
-    let tile_size = Vector3::new(map.tile_width, map.tile_height, 1);
-    let sheet = load_sprite_sheet(packed, loader, progress, storage);
-
-    let mut tilemap = TileMap::new(map_size, tile_size, Some(sheets.insert(sheet)));
-
-    for layer in &map.layers {
-        for y in 0..layer.tiles.len() {
-            for x in 0..layer.tiles[y].len() {
-                match tilemap.get_mut(&Point3::new(x as u32, y as u32, layer.layer_index)) {
-                    Some(v) => *v = TileGid(layer.tiles[y][x].gid as usize),
-                    None => unreachable!("The map file was corrupt"),
-                }
-            }
-        }
-    }
-
-    Ok(tilemap)
 }
 
 fn load_tileset_inner(

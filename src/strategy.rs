@@ -1,4 +1,4 @@
-use amethyst::assets::{AssetStorage, Loader, ProgressCounter, Source};
+use amethyst::assets::{AssetStorage, Loader, ProgressCounter, Source, Handle};
 use amethyst::core::math::{Point3, Vector3};
 use amethyst::ecs::{Read, ReadExpect, SystemData, Write};
 use amethyst::renderer::{SpriteSheet, Texture};
@@ -80,9 +80,13 @@ impl<'a, E: CoordinateEncoder> LoadStrategy<'a> for FlatLoad<E> {
     }
 }
 
-/// A load strategy that makes sure that unused tiles are not loaded to the gpu. This eliminates
-/// possible memory leaks, but also means that the grid ids of tiles will not line up with the ones
-/// used in Tiled.
+/// A version of FlatLoad that tries to save time and memory by skipping unused tiles when
+/// packing the sprite sheet and not leaving the unused tiles stored in memory. On the other hand,
+/// if most or all of the tiles are used in the map it the regular version will be faster and use a
+/// similar amount of memory.
+///
+/// In random experimentation, this method was ~2x (23.5s -> 12.6s) as fast as FlatLoad to load the
+/// example.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct CompressedLoad<E: CoordinateEncoder = FlatEncoder>(PhantomData<E>);
 
@@ -161,3 +165,20 @@ fn collect_gid_usage(map: &Map) -> BTreeSet<u32> {
 /// layers together.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct StaticLoad;
+
+impl StrategyDesc for StaticLoad {
+    type Result = Handle<Texture>;
+}
+
+impl<'a> LoadStrategy<'a> for StaticLoad {
+    type SystemData = ();
+
+    fn load(
+        _map: &Map,
+        _source: Arc<dyn Source>,
+        _progress: &mut ProgressCounter,
+        _system_data: &mut Self::SystemData,
+    ) -> Result<Self::Result, Error> {
+        unimplemented!()
+    }
+}

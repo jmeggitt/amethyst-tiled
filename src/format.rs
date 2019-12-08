@@ -6,7 +6,7 @@ use amethyst::Error;
 use image::{load_from_memory, DynamicImage, ImageError, RgbaImage};
 use tiled::{parse, parse_tileset, TilesetRef};
 
-use crate::prefab::{MapPrefab, TileMapPrefab, TileSetPrefab};
+use crate::prefab::TileMapPrefab;
 use crate::strategy::StrategyDesc;
 
 /// Format for loading *.tmx and *.tsx files
@@ -32,18 +32,7 @@ where
     }
 }
 
-//impl Format<TileSetPrefab> for TiledFormat {
-//    fn name(&self) -> &'static str {
-//        "Tile Set"
-//    }
-//
-//    fn import_simple(&self, bytes: Vec<u8>) -> Result<TileSetPrefab, Error> {
-//        let set = parse_tileset(&bytes[..], 1).map_err(Error::new)?;
-//        Ok(TileSetPrefab::TileSet(set))
-//    }
-//}
-
-impl<T: 'static + StrategyDesc> Format<MapPrefab<T>> for TiledFormat {
+impl<T: 'static + StrategyDesc> Format<TileMapPrefab<T>> for TiledFormat {
     fn name(&self) -> &'static str {
         "Tile Map"
     }
@@ -52,8 +41,8 @@ impl<T: 'static + StrategyDesc> Format<MapPrefab<T>> for TiledFormat {
         &self,
         name: String,
         source: Arc<dyn Source>,
-        create_reload: Option<Box<dyn Format<MapPrefab<T>>>>,
-    ) -> Result<FormatValue<MapPrefab<T>>, Error> {
+        create_reload: Option<Box<dyn Format<TileMapPrefab<T>>>>,
+    ) -> Result<FormatValue<TileMapPrefab<T>>, Error> {
         let (b, m) = source.load_with_metadata(&name)?;
 
         let mut map = match parse(&b[..]) {
@@ -81,11 +70,11 @@ impl<T: 'static + StrategyDesc> Format<MapPrefab<T>> for TiledFormat {
 
         if let Some(boxed_format) = create_reload {
             Ok(FormatValue {
-                data: MapPrefab::Map(map, source.clone()),
+                data: TileMapPrefab::Map(map, source.clone()),
                 reload: Some(Box::new(SingleFile::new(boxed_format, m, name, source))),
             })
         } else {
-            Ok(FormatValue::data(MapPrefab::Map(map, source)))
+            Ok(FormatValue::data(TileMapPrefab::Map(map, source)))
         }
     }
 }
