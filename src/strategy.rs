@@ -12,6 +12,9 @@ use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 pub trait StrategyDesc {
     /// The type of output this strategy will produce
     type Result;
@@ -52,6 +55,9 @@ impl<'a, E: CoordinateEncoder> LoadStrategy<'a> for FlatLoad<E> {
         progress: &mut ProgressCounter,
         system_data: &mut Self::SystemData,
     ) -> Result<Self::Result, Error> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("FlatLoad::load");
+
         let (loader, storage, sheets) = system_data;
 
         let packed = pack_tileset_vec(
@@ -107,8 +113,10 @@ impl<'a, E: CoordinateEncoder> LoadStrategy<'a> for CompressedLoad<E> {
         progress: &mut ProgressCounter,
         system_data: &mut Self::SystemData,
     ) -> Result<Self::Result, Error> {
-        let (loader, storage, sheets) = system_data;
+        #[cfg(feature = "profiler")]
+        profile_scope!("CompressedLoad::load");
 
+        let (loader, storage, sheets) = system_data;
         let tile_usage: Vec<u32> = collect_gid_usage(map).into_iter().collect();
 
         let mut gid_updater = HashMap::new();
@@ -149,6 +157,9 @@ impl<'a, E: CoordinateEncoder> LoadStrategy<'a> for CompressedLoad<E> {
 }
 
 fn collect_gid_usage(map: &Map) -> BTreeSet<u32> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("collect_gid_usage");
+
     let mut gids = BTreeSet::new();
     for layer in &map.layers {
         for row in &layer.tiles {
@@ -182,3 +193,4 @@ impl<'a> LoadStrategy<'a> for StaticLoad {
         unimplemented!()
     }
 }
+// ), error: Compat { error: ErrorMessage { msg: "Format Rgba8Srgb is not supported and no suitable conversion found." }

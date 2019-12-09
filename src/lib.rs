@@ -10,15 +10,15 @@ use amethyst::ecs::World;
 use amethyst::error::Error;
 use amethyst::renderer::rendy::{
     hal::image::{Filter, Kind, SamplerInfo, ViewKind, WrapMode},
-    texture::{pixel::Rgba8Srgb, TextureBuilder},
+    texture::{pixel::AsPixel, pixel::Rgba8Srgb, TextureBuilder},
 };
-use amethyst::renderer::{
-    palette::{Pixel, Srgba},
-    SpriteSheet, Texture,
-};
+use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::tiles::Tile;
 use sheep::{encode, SpriteSheet as PackedSpriteSheet};
 use tiled::{parse_tileset, Tileset};
+
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
 
 mod format;
 pub mod packing;
@@ -54,13 +54,12 @@ fn load_sprite_sheet(
     progress: &mut ProgressCounter,
     storage: &AssetStorage<Texture>,
 ) -> SpriteSheet {
+    #[cfg(feature = "profiler")]
+    profile_scope!("load_sprite_sheet");
+
+    let sprites = encode::<AmethystOrderedFormat>(&packed, ());
+
     let (width, height) = packed.dimensions;
-
-    let mut pixel_data = Vec::new();
-
-    for pixel in Srgba::from_raw_slice(&packed.bytes) {
-        pixel_data.push(Rgba8Srgb::from(pixel.clone()));
-    }
 
     let texture_builder = TextureBuilder::new()
         .with_kind(Kind::D2(width, height, 1, 1))
@@ -68,11 +67,11 @@ fn load_sprite_sheet(
         .with_data_width(width)
         .with_data_height(height)
         .with_sampler_info(SamplerInfo::new(Filter::Nearest, WrapMode::Clamp))
-        .with_data(pixel_data);
+        .with_raw_data(packed.bytes, Rgba8Srgb::FORMAT);
 
     SpriteSheet {
         texture: loader.load_from_data(texture_builder.into(), progress, storage),
-        sprites: encode::<AmethystOrderedFormat>(&packed, ()),
+        sprites,
     }
 }
 

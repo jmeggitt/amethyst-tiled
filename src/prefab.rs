@@ -8,6 +8,9 @@ use crate::strategy::{CompressedLoad, LoadStrategy, StrategyDesc};
 use crate::{load_tileset_inner, Tilesets};
 use std::sync::Arc;
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 pub enum TileSetPrefab {
     Handle(Handle<SpriteSheet>),
     TileSet(Tileset, Arc<dyn Source>),
@@ -86,6 +89,9 @@ where
         _entities: &[Entity],
         _children: &[Entity],
     ) -> Result<(), Error> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("add_tilemap_to_entity");
+
         let (_, storage) = system_data;
 
         match self {
@@ -102,6 +108,8 @@ where
         progress: &mut ProgressCounter,
         system_data: &mut Self::SystemData,
     ) -> Result<bool, Error> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("load_tilemap_assets");
         match self {
             TileMapPrefab::Map(map, source) => {
                 *self = Self::Result(T::load(map, source.clone(), progress, &mut system_data.0)?);

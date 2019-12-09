@@ -9,6 +9,9 @@ use tiled::{parse, parse_tileset, TilesetRef};
 use crate::prefab::TileMapPrefab;
 use crate::strategy::StrategyDesc;
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 /// Format for loading *.tmx and *.tsx files
 #[derive(Debug, Copy, Clone)]
 pub struct TiledFormat;
@@ -43,6 +46,9 @@ impl<T: 'static + StrategyDesc> Format<TileMapPrefab<T>> for TiledFormat {
         source: Arc<dyn Source>,
         create_reload: Option<Box<dyn Format<TileMapPrefab<T>>>>,
     ) -> Result<FormatValue<TileMapPrefab<T>>, Error> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("import_tiled_format");
+
         let (b, m) = source.load_with_metadata(&name)?;
 
         let mut map = match parse(&b[..]) {
@@ -50,6 +56,7 @@ impl<T: 'static + StrategyDesc> Format<TileMapPrefab<T>> for TiledFormat {
             Err(e) => return Err(Error::new(e)),
         };
 
+        // TODO: Only adjust tileset path, don't load dependencies just yet
         for tileset in &mut map.tilesets {
             if let TilesetRef::Path(path, gid) = tileset {
                 let mut path_buf = PathBuf::from(&name);

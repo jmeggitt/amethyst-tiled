@@ -3,11 +3,17 @@
 use amethyst::assets::Source;
 use amethyst::error::Error;
 use amethyst::renderer::sprite::Sprite;
-use image::{DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
-use sheep::{pack, Format, InputSprite, SimplePacker, SpriteAnchor, SpriteSheet};
+use image::{load_from_memory, DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
+use sheep::{
+    pack, Format, InputSprite, Packer, PackerResult, SimplePacker, SpriteAnchor, SpriteData,
+    SpriteSheet,
+};
 use std::sync::Arc;
 use tiled::Image as TileImage;
 use tiled::Tileset;
+
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
 
 pub struct AmethystOrderedFormat;
 
@@ -20,6 +26,9 @@ impl Format for AmethystOrderedFormat {
         sprites: &[SpriteAnchor],
         _options: Self::Options,
     ) -> Self::Data {
+        #[cfg(feature = "profiler")]
+        profile_scope!("encode_amethyst_format");
+
         // Fix ordering issues
         let mut inputs = sprites.to_vec();
         inputs.sort_by_key(|x| x.id);
@@ -37,6 +46,50 @@ impl Format for AmethystOrderedFormat {
                 )
             })
             .collect()
+    }
+}
+
+/// A sprite packer that can save time on the packing by assuming all sprites will be the exact same
+/// size. Because of this, it can pack everything in a single pass. However, it won't be as easy to
+/// view and look at due to all of the sprites being put in a vertical line.
+pub struct TilePacker;
+
+impl Packer for TilePacker {
+    type Options = ();
+
+    fn pack(sprites: &[SpriteData], _options: Self::Options) -> Vec<PackerResult> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("pack_tiled_image");
+
+        let tile_dimensions = match sprites.get(0) {
+            Some(v) => v.dimensions,
+            None => {
+                return vec![PackerResult {
+                    dimensions: (0, 0),
+                    anchors: Vec::new(),
+                }]
+            }
+        };
+
+        let (width, height) = tile_dimensions;
+
+        let mut num = 0;
+        let mut anchors = Vec::with_capacity(sprites.len());
+
+        for sprite in sprites {
+            anchors.push(SpriteAnchor {
+                id: sprite.id,
+                position: (0, num * height),
+                dimensions: tile_dimensions,
+            });
+
+            num += 1;
+        }
+
+        vec![PackerResult {
+            dimensions: (width, num * height),
+            anchors,
+        }]
     }
 }
 
@@ -72,6 +125,9 @@ pub fn pack_image(
     source: Arc<dyn Source>,
     spec: TileSpec,
 ) -> Result<Vec<InputSprite>, Error> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("pack_image");
+
     let mut image = open_image(img, source)?;
 
     let TileSpec {
@@ -80,6 +136,7 @@ pub fn pack_image(
         margin,
         spacing,
     } = spec;
+
     let mut sprites = Vec::new();
     for y in (margin..image.height() + margin).step_by((height + spacing) as usize) {
         for x in (margin..image.width() + margin).step_by((width + spacing) as usize) {
@@ -102,6 +159,9 @@ pub fn pack_sparse_image(
     first_gid: u32,
     usage: &[u32],
 ) -> Result<(Vec<InputSprite>, u32, usize), Error> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("pack_sparse_image");
+
     let mut image = open_image(img, source)?;
 
     let TileSpec {
@@ -137,26 +197,42 @@ pub fn pack_sparse_image(
 
 /// Open the image and removes the transparent color
 pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage, Error> {
-    let bytes = match source.load(&img.source) {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(Error::from_string(format!(
-                "Unable to open image path: {:?}",
-                &img.source
-            )));
+    #[cfg(feature = "profiler")]
+    profile_scope!("open_image");
+
+    let bytes = {
+        #[cfg(feature = "profiler")]
+        profile_scope!("load_image_source");
+
+        match source.load(&img.source) {
+            Ok(v) => v,
+            Err(_) => {
+                return Err(Error::from_string(format!(
+                    "Unable to open image path: {:?}",
+                    &img.source
+                )));
+            }
         }
     };
 
-    let mut image = match image::load_from_memory(&bytes[..])? {
-        DynamicImage::ImageRgba8(v) => v,
-        _ => {
-            return Err(
-                ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into(),
-            )
+    let mut image = {
+        #[cfg(feature = "profiler")]
+        profile_scope!("load_from_memory");
+
+        match load_from_memory(&bytes[..])? {
+            DynamicImage::ImageRgba8(v) => v,
+            _ => {
+                return Err(
+                    ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into(),
+                )
+            }
         }
     };
 
     if let Some(color) = img.transparent_colour {
+        #[cfg(feature = "profiler")]
+        profile_scope!("apply_transparency");
+
         let color = Rgba([color.red, color.green, color.blue, 0]);
 
         for pixel in image.pixels_mut() {
@@ -174,6 +250,9 @@ pub fn pack_sparse_tileset_vec(
     source: Arc<dyn Source>,
     usage: &[u32],
 ) -> Result<SpriteSheet, Error> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("pack_sparse_tileset_vec");
+
     let mut sprites = Vec::new();
     let tile_size = (sets[0].tile_width, sets[0].tile_height);
 
@@ -210,6 +289,9 @@ pub fn pack_sparse_tileset_vec(
         }
     }
 
+    #[cfg(feature = "profiler")]
+    profile_scope!("sheep_pack_image");
+
     // There is guaranteed to be exactly one resulting sprite sheet
     Ok(pack::<SimplePacker>(sprites, 4, ()).remove(0))
 }
@@ -219,6 +301,9 @@ pub fn pack_tileset_vec(
     sets: &Vec<Tileset>,
     source: Arc<dyn Source>,
 ) -> Result<SpriteSheet, Error> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("pack_tileset_vec");
+
     let mut sprites = Vec::new();
     let tile_size = (sets[0].tile_width, sets[0].tile_height);
 
@@ -242,6 +327,9 @@ pub fn pack_tileset_vec(
             )?);
         }
     }
+
+    #[cfg(feature = "profiler")]
+    profile_scope!("sheep_pack_image");
 
     // There is guaranteed to be exactly one resulting sprite sheet
     Ok(pack::<SimplePacker>(sprites, 4, ()).remove(0))
