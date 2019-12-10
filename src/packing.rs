@@ -172,7 +172,7 @@ pub fn pack_sparse_image(
     } = spec;
 
     let grid_width = (image.width() - 2 * margin) / (width + spacing);
-    let grid_height = (image.width() - 2 * margin) / (width + spacing);
+    let grid_height = (image.height() - 2 * margin) / (height + spacing);
 
     let mut sprites = Vec::new();
     let mut consumed_tiles = 0;
