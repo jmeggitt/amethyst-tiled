@@ -183,8 +183,8 @@ pub fn pack_sparse_image(
         }
         consumed_tiles += 1;
 
-        let x = margin + ((idx - first_gid) % grid_width) * (height + spacing);
-        let y = margin + ((idx - first_gid) / grid_height) * (width + spacing);
+        let x = margin + ((idx - first_gid) % grid_width) * (width + spacing);
+        let y = margin + ((idx - first_gid) / grid_width) * (height + spacing);
 
         sprites.push(InputSprite {
             dimensions: (width, height),
