@@ -3,7 +3,7 @@
 use amethyst::assets::Source;
 use amethyst::error::Error;
 use amethyst::renderer::sprite::Sprite;
-use image::{load_from_memory, DynamicImage, GenericImage, ImageError, Pixel, Rgba, RgbaImage};
+use image::{load_from_memory, GenericImage, Pixel, Rgba, RgbaImage};
 use sheep::{
     pack, Format, InputSprite, Packer, PackerResult, SimplePacker, SpriteAnchor, SpriteData,
     SpriteSheet,
@@ -219,14 +219,9 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
         #[cfg(feature = "profiler")]
         profile_scope!("load_from_memory");
 
-        match load_from_memory(&bytes[..])? {
-            DynamicImage::ImageRgba8(v) => v,
-            _ => {
-                return Err(
-                    ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into(),
-                )
-            }
-        }
+        // TODO: Leave images in their original formats and allow amethyst to deal with conversions
+        // to save memory when possible
+        load_from_memory(&bytes[..])?.to_rgba()
     };
 
     if let Some(color) = img.transparent_colour {
