@@ -56,19 +56,15 @@ impl<T: 'static + StrategyDesc> Format<TileMapPrefab<T>> for TiledFormat {
             Err(e) => return Err(Error::new(e)),
         };
 
-        // TODO: Only adjust tileset path, don't load dependencies just yet
         for tileset in &mut map.tilesets {
             if let TilesetRef::Path(path, gid) = tileset {
-                let mut path_buf = PathBuf::from(&name);
-                path_buf.set_file_name(path);
-                let source = source.load(path_buf.to_str().unwrap())?;
+                let file = shift_path(&name, path);
+                let source = source.load(&file)?;
 
                 let mut set = parse_tileset(&source[..], *gid)?;
 
                 for image in &mut set.images {
-                    let mut path_buf = path_buf.clone();
-                    path_buf.set_file_name(&image.source);
-                    image.source = path_buf.to_str().unwrap().to_owned();
+                    image.source = shift_path(&file, &image.source);
                 }
 
                 *tileset = TilesetRef::TileSet(set);
@@ -97,4 +93,11 @@ impl Format<RgbaImage> for TiledFormat {
             _ => Err(ImageError::FormatError("Unable to read non rgba8 images".to_owned()).into()),
         }
     }
+}
+
+/// Get an adjusted path based on a reference
+fn shift_path(reference: &str, path: &str) -> String {
+    let mut path_buf = PathBuf::from(reference);
+    path_buf.set_file_name(path);
+    path_buf.to_str().unwrap().to_owned()
 }

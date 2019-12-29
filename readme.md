@@ -40,7 +40,7 @@ let _map_entity = world
 ## Features to add:
 A list of features I would like to add in the future, but havent had time to do yet.
 - [x] Only pack sprites that used in the tile map to save memory and load time spent packing ignored sprites
-- [ ] Support all image/pixel types (Currently only supports Rgba8)
+- [x] Support all image/pixel types (Currently only supports Rgba8) ***Currently all images are converted to Rgba8***
 - [x] Use `amethyst::error::Error` everywhere when parsing for consistency
 - [ ] Mark flipped tiles so they can be correctly managed by amethyst
 - [ ] Support animation sequences via tiles that swap textures periodically

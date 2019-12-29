@@ -1,5 +1,5 @@
 //! Module to help pack tile sets and convert them into amethyst
-//! https://github.com/amethyst/sheep/blob/master/sheep/examples/simple_pack/main.rs
+
 use amethyst::assets::Source;
 use amethyst::error::Error;
 use amethyst::renderer::sprite::Sprite;
@@ -241,7 +241,7 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
 }
 
 pub fn pack_sparse_tileset_vec(
-    sets: &Vec<Tileset>,
+    sets: &[Tileset],
     source: Arc<dyn Source>,
     usage: &[u32],
 ) -> Result<SpriteSheet, Error> {
@@ -293,7 +293,7 @@ pub fn pack_sparse_tileset_vec(
 
 /// Pack a list of tile sets while paying attention to the first grid id
 pub fn pack_tileset_vec(
-    sets: &Vec<Tileset>,
+    sets: &[Tileset],
     source: Arc<dyn Source>,
 ) -> Result<SpriteSheet, Error> {
     #[cfg(feature = "profiler")]

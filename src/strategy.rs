@@ -4,7 +4,7 @@ use amethyst::ecs::{Read, ReadExpect, SystemData, Write};
 use amethyst::renderer::{SpriteSheet, Texture};
 use amethyst::tiles::{CoordinateEncoder, FlatEncoder, MapStorage, TileMap};
 use amethyst::Error;
-use tiled::Map;
+use tiled::{Map, Tileset};
 
 use crate::packing::{pack_sparse_tileset_vec, pack_tileset_vec};
 use crate::{load_sprite_sheet, TileGid};
@@ -61,7 +61,7 @@ impl<'a, E: CoordinateEncoder> LoadStrategy<'a> for FlatLoad<E> {
         let (loader, storage, sheets) = system_data;
 
         let packed = pack_tileset_vec(
-            &map.tilesets.iter().map(|x| x.unwrap().clone()).collect(),
+            &map.tilesets.iter().map(|x| x.unwrap().clone()).collect::<Vec<Tileset>>()[..],
             source,
         )?;
 
@@ -126,7 +126,7 @@ impl<'a, E: CoordinateEncoder> LoadStrategy<'a> for CompressedLoad<E> {
         }
 
         let packed = pack_sparse_tileset_vec(
-            &map.tilesets.iter().map(|x| x.unwrap().clone()).collect(),
+            &map.tilesets.iter().map(|x| x.unwrap().clone()).collect::<Vec<Tileset>>()[..],
             source,
             &tile_usage[..],
         )?;
