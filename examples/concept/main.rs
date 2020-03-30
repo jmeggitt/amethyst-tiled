@@ -103,7 +103,7 @@ fn main() -> amethyst::Result<()> {
         .with_bundle(
             RenderingBundle::<DefaultBackend>::new()
                 .with_plugin(
-                    RenderToWindow::from_config_path(display_config_path).with_clear([1.0; 4]),
+                    RenderToWindow::from_config_path(display_config_path)?.with_clear([1.0; 4]),
                 )
                 .with_plugin(RenderTiles2D::<TileGid, FlatEncoder>::default()),
         )?;
