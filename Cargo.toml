@@ -5,18 +5,18 @@ authors = ["Jasper Meggitt <jasper.meggitt@gmail.com>"]
 edition = "2018"
 
 [features]
-default = ["amethyst/tiles"]
+default = ["amethyst/tiles", "amethyst/metal"]
 profiler = ["thread_profiler", "amethyst/profiler"]
 
 [dependencies]
 tiled = { git = "https://github.com/jmeggitt/rs-tiled.git" }
 sheep = "0.3.0"
-image = "0.22"
-amethyst = "0.13"
+image = "0.23.2"
+amethyst = "0.15.0"
 thread_profiler = {version = "0.3", optional = true }
 
 [dev-dependencies]
-log = { version = "0.4.6", features = ["serde"] }
+log = { version = "0.4.8", features = ["serde"] }
 
 [[example]]
 name = "concept"
