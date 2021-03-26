@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use amethyst::assets::{Format, FormatValue, Prefab, SingleFile, Source};
 use amethyst::Error;
-use image::{load_from_memory, DynamicImage, ImageError, RgbaImage};
+use image::{load_from_memory, DynamicImage, RgbaImage};
 use tiled::{parse, parse_tileset, TilesetRef};
 
 use crate::prefab::TileMapPrefab;

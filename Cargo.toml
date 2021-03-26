@@ -5,7 +5,7 @@ authors = ["Jasper Meggitt <jasper.meggitt@gmail.com>"]
 edition = "2018"
 
 [features]
-default = ["amethyst/tiles", "amethyst/metal"]
+default = ["amethyst/tiles"]
 profiler = ["thread_profiler", "amethyst/profiler"]
 
 [dependencies]
