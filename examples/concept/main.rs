@@ -14,7 +14,7 @@ use amethyst::{
     window::ScreenDimensions,
 };
 
-use tiled_support::{TileGid, TileMapPrefab, TiledFormat};
+use amethyst_tiled::{TileGid, TileMapPrefab, TiledFormat};
 
 #[derive(Default)]
 pub struct CameraMovementSystem;

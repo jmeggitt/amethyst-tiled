@@ -221,7 +221,7 @@ pub fn open_image(img: &TileImage, source: Arc<dyn Source>) -> Result<RgbaImage,
 
         // TODO: Leave images in their original formats and allow amethyst to deal with conversions
         // to save memory when possible
-        load_from_memory(&bytes[..])?.to_rgba()
+        load_from_memory(&bytes[..])?.to_rgba8()
     };
 
     if let Some(color) = img.transparent_colour {
